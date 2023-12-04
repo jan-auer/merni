@@ -15,8 +15,9 @@ divan = "0.1.4"
 metrics = "0.21.1"
 metrics-exporter-statsd = "0.6.0"
 
-[profile.release]
+[profile.bench]
 debug = 1
+codegen-units = 1
 lto = true
 
 [[bench]]
