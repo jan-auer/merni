@@ -15,6 +15,10 @@ divan = "0.1.4"
 metrics = "0.21.1"
 metrics-exporter-statsd = "0.6.0"
 
+[profile.release]
+debug = 1
+lto = true
+
 [[bench]]
 name = "cadence"
 harness = false
