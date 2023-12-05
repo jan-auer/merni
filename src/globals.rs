@@ -1,23 +1,18 @@
-use std::cell::RefCell;
 use std::sync::OnceLock;
 
 use crate::Metric;
 
 pub trait Recorder {
-    fn emit(&self, metric: &str);
+    fn record_metric(&self, metric: Metric<'_>);
 }
 
 impl<T: Recorder + ?Sized> Recorder for Box<T> {
-    fn emit(&self, metric: &str) {
-        (**self).emit(metric)
+    fn record_metric(&self, metric: Metric<'_>) {
+        (**self).record_metric(metric)
     }
 }
 
 static GLOBAL_RECORDER: OnceLock<Box<dyn Recorder + Send + Sync + 'static>> = OnceLock::new();
-
-thread_local! {
-    static STRING_BUFFER: RefCell<String> = const { RefCell::new(String::new()) };
-}
 
 pub fn init<R: Recorder + Send + Sync + 'static>(recorder: R) -> Result<(), R> {
     let mut result = Err(recorder);
@@ -32,13 +27,17 @@ pub fn init<R: Recorder + Send + Sync + 'static>(recorder: R) -> Result<(), R> {
 }
 
 pub fn record_metric(metric: Metric<'_>) {
+    with_recorder(|r| r.record_metric(metric))
+}
+
+pub fn with_recorder<F, R>(f: F) -> R
+where
+    F: FnOnce(&dyn Recorder) -> R,
+    R: Default,
+{
     if let Some(recorder) = GLOBAL_RECORDER.get() {
-        STRING_BUFFER.with_borrow_mut(|s| {
-            s.clear();
-            s.reserve(256);
-            metric.write_base_metric(s);
-            metric.write_tags(s);
-            recorder.emit(s);
-        });
+        f(recorder)
+    } else {
+        Default::default()
     }
 }

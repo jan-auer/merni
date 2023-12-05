@@ -1,12 +1,13 @@
 use divan::black_box;
 
 fn main() {
-    pub struct Recorder;
-    impl merni::Recorder for Recorder {
+    pub struct Sink;
+    impl merni::MetricSink for Sink {
         fn emit(&self, _metric: &str) {}
     }
 
-    merni::init(Recorder).map_err(|_| ()).unwrap();
+    let recorder = merni::StatsdRecorder::new("example.prefix", Sink);
+    merni::init(recorder).map_err(|_| ()).unwrap();
 
     divan::main();
 }
