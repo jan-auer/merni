@@ -12,8 +12,12 @@ fn main() {
 
     struct NoopCounter(Key);
     impl CounterFn for NoopCounter {
-        fn increment(&self, _value: u64) {}
-        fn absolute(&self, _value: u64) {}
+        fn increment(&self, value: u64) {
+            black_box(value);
+        }
+        fn absolute(&self, value: u64) {
+            black_box(value);
+        }
     }
 
     impl metrics::Recorder for NoopRecorder {

@@ -1,17 +1,18 @@
-use cadence::{MetricSink, StatsdClient};
-use divan::black_box;
+use cadence::{Counted, MetricSink, StatsdClient};
+use divan::{black_box, Bencher};
 
 // #[global_allocator]
 // static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
 
-fn main() {
-    struct NoopCadenceSink;
-    impl MetricSink for NoopCadenceSink {
-        fn emit(&self, _metric: &str) -> std::io::Result<usize> {
-            Ok(0)
-        }
+struct NoopCadenceSink;
+impl MetricSink for NoopCadenceSink {
+    fn emit(&self, metric: &str) -> std::io::Result<usize> {
+        black_box(metric);
+        Ok(0)
     }
+}
 
+fn main() {
     let metrics = StatsdClient::from_sink("example.prefix", NoopCadenceSink);
     cadence_macros::set_global_default(metrics);
 
@@ -39,4 +40,30 @@ fn d_dynamic_tags() {
     let tag_key = black_box("tag");
     let tag_value = black_box("value");
     cadence_macros::statsd_count!("counter.simple.tags.dynamic", 1, tag_key => tag_value);
+}
+
+#[divan::bench]
+fn e_only_global_tags(bencher: Bencher) {
+    let metrics = StatsdClient::builder("example.prefix", NoopCadenceSink)
+        .with_tag("global_tag1", "tag_value")
+        .with_tag_value("global_tag2")
+        .build();
+
+    bencher.bench(|| metrics.count_with_tags("counter.global.tags", 1).send());
+}
+
+#[divan::bench]
+fn f_global_and_local_tags(bencher: Bencher) {
+    let metrics = StatsdClient::builder("example.prefix", NoopCadenceSink)
+        .with_tag("global_tag1", "tag_value")
+        .with_tag_value("global_tag2")
+        .build();
+
+    bencher.bench(|| {
+        metrics
+            .count_with_tags("counter.global.tags", 1)
+            .with_tag("local_tag1", "tag_value")
+            .with_tag_value("local_tag2")
+            .send()
+    });
 }

@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::fmt;
+use std::fmt::{Display, Write};
 
 use crate::{Metric, Recorder};
 
@@ -14,7 +14,7 @@ pub trait MetricSink {
 pub struct StatsdRecorder<S> {
     prefix: String,
     sink: S,
-    tags: Vec<(Option<String>, String)>,
+    tags: String,
 }
 
 impl<S> StatsdRecorder<S> {
@@ -27,18 +27,49 @@ impl<S> StatsdRecorder<S> {
         Self {
             prefix,
             sink,
-            tags: vec![],
+            tags: String::new(),
         }
     }
 
-    pub fn with_tag(mut self, key: impl ToString, value: impl ToString) -> Self {
-        self.tags.push((Some(key.to_string()), value.to_string()));
+    fn write_tag(mut self, key: Option<&dyn Display>, value: &dyn Display) -> Self {
+        let t = &mut self.tags;
+        if t.is_empty() {
+            t.push_str("|#");
+        } else {
+            t.push(',');
+        }
+
+        if let Some(key) = key {
+            let _ = write!(t, "{key}");
+            t.push(':');
+        }
+        let _ = write!(t, "{value}");
+
         self
     }
 
-    pub fn with_tag_value(mut self, value: impl ToString) -> Self {
-        self.tags.push((None, value.to_string()));
-        self
+    pub fn with_tag(self, key: impl Display, value: impl Display) -> Self {
+        self.write_tag(Some(&key), &value)
+    }
+
+    pub fn with_tag_value(self, value: impl Display) -> Self {
+        self.write_tag(None, &value)
+    }
+
+    fn write_metric(&self, metric: Metric<'_>, s: &mut String) {
+        s.push_str(&self.prefix);
+        metric.write_base_metric(s);
+
+        s.push_str(&self.tags);
+        if !metric.tags.is_empty() {
+            if self.tags.is_empty() {
+                s.push_str("|#");
+            } else {
+                s.push(',');
+            }
+
+            metric.write_tags(s);
+        }
     }
 }
 
@@ -47,9 +78,9 @@ impl<S: MetricSink> Recorder for StatsdRecorder<S> {
         STRING_BUFFER.with_borrow_mut(|s| {
             s.clear();
             s.reserve(256);
-            s.push_str(&self.prefix);
-            metric.write_base_metric(s);
-            metric.write_tags(&self.tags, s);
+
+            self.write_metric(metric, s);
+
             self.sink.emit(s);
         });
     }
@@ -57,40 +88,20 @@ impl<S: MetricSink> Recorder for StatsdRecorder<S> {
 
 impl Metric<'_> {
     pub(crate) fn write_base_metric(&self, s: &mut String) {
-        use fmt::Write;
-        let _ = write!(s, "{}:{}|{}", self.key, self.value, self.ty);
+        let _ = write!(s, "{}:{}|", self.key, self.value);
+        s.push_str(self.ty.as_str());
     }
 
-    pub(crate) fn write_tags(&self, global_tags: &[(Option<String>, String)], s: &mut String) {
-        use fmt::Write;
-        if !global_tags.is_empty() || !self.tags.is_empty() {
-            s.push_str("|#");
-
-            for (i, (key, value)) in global_tags.iter().enumerate() {
-                if i > 0 {
-                    s.push(',');
-                }
-                if let Some(key) = key {
-                    let _ = write!(s, "{key}");
-                    s.push(':');
-                }
-                let _ = write!(s, "{value}");
-            }
-
-            if !global_tags.is_empty() {
+    pub(crate) fn write_tags(&self, s: &mut String) {
+        for (i, &(key, value)) in self.tags.iter().enumerate() {
+            if i > 0 {
                 s.push(',');
             }
-
-            for (i, &(key, value)) in self.tags.iter().enumerate() {
-                if i > 0 {
-                    s.push(',');
-                }
-                if let Some(key) = key {
-                    let _ = write!(s, "{key}");
-                    s.push(':');
-                }
-                let _ = write!(s, "{value}");
+            if let Some(key) = key {
+                let _ = write!(s, "{key}");
+                s.push(':');
             }
+            let _ = write!(s, "{value}");
         }
     }
 }

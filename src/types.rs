@@ -1,4 +1,5 @@
 use core::fmt::{self, Display};
+// use std::time::Duration;
 
 #[non_exhaustive]
 #[derive(Debug)]
@@ -40,6 +41,7 @@ pub enum MetricValue {
     I64(i64),
     U64(u64),
     F64(f64),
+    // Duration(Duration)
 }
 
 impl Display for MetricValue {

@@ -8,7 +8,8 @@ use metrics_exporter_statsd::StatsdRecorder;
 fn main() {
     struct NoopCadenceSink;
     impl MetricSink for NoopCadenceSink {
-        fn emit(&self, _metric: &str) -> std::io::Result<usize> {
+        fn emit(&self, metric: &str) -> std::io::Result<usize> {
+            black_box(metric);
             Ok(0)
         }
     }
