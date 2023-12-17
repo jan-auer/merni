@@ -1,6 +1,9 @@
 use cadence::{MetricSink, StatsdClient};
 use divan::black_box;
 
+// #[global_allocator]
+// static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
+
 fn main() {
     struct NoopCadenceSink;
     impl MetricSink for NoopCadenceSink {

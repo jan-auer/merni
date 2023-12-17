@@ -1,5 +1,8 @@
 use divan::black_box;
 
+// #[global_allocator]
+// static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
+
 fn main() {
     pub struct Sink;
     impl merni::MetricSink for Sink {

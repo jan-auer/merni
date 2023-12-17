@@ -3,6 +3,9 @@ use std::sync::Arc;
 use divan::black_box;
 use metrics::{Counter, CounterFn, Gauge, Histogram, Key, KeyName, SharedString, Unit};
 
+// #[global_allocator]
+// static ALLOC: divan::AllocProfiler = divan::AllocProfiler::system();
+
 fn main() {
     struct NoopRecorder;
     static NOOP_RECORDER: NoopRecorder = NoopRecorder;
