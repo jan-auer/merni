@@ -1,6 +1,7 @@
 use core::fmt::{self, Display};
 
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum MetricType {
     Counter,
     Gauge,
@@ -11,36 +12,42 @@ pub enum MetricType {
     // Set,
 }
 
-impl Display for MetricType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
+impl MetricType {
+    pub fn as_str(&self) -> &str {
+        match self {
             MetricType::Counter => "c",
             MetricType::Gauge => "g",
             MetricType::Distribution => "d",
-        })
+        }
+    }
+}
+
+impl Display for MetricType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum MetricUnit {
     Unknown,
 }
 
 #[non_exhaustive]
-pub enum MetricValue<'a> {
+#[derive(Debug)]
+pub enum MetricValue {
     I64(i64),
     U64(u64),
     F64(f64),
-    Str(&'a str),
 }
 
-impl Display for MetricValue<'_> {
+impl Display for MetricValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             MetricValue::I64(v) => v.fmt(f),
             MetricValue::U64(v) => v.fmt(f),
             MetricValue::F64(v) => v.fmt(f),
-            MetricValue::Str(v) => v.fmt(f),
         }
     }
 }
@@ -48,7 +55,7 @@ impl Display for MetricValue<'_> {
 macro_rules! into_metric_value {
     ($($from:ident),+ => $variant:ident) => {
         $(
-            impl From<$from> for MetricValue<'_> {
+            impl From<$from> for MetricValue {
                 #[inline(always)]
                 fn from(f: $from) -> Self {
                     Self::$variant(f.into())
@@ -70,5 +77,5 @@ pub struct Metric<'a> {
     pub unit: MetricUnit,
 
     pub tags: MetricTags<'a>,
-    pub value: MetricValue<'a>,
+    pub value: MetricValue,
 }
