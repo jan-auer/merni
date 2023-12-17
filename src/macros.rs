@@ -1,3 +1,10 @@
+/// Create a [`Metric`](crate::Metric).
+///
+/// Instead of creating metrics directly, it is recommended to immediately record
+/// metrics using the [`counter!`], [`gauge!`] or [`distribution!`] macros.
+///
+/// This is the recommended way to create a [`Metric`](crate::Metric), as the
+/// implementation details of it might change.
 #[macro_export]
 macro_rules! metric {
     ($ty:ident: $key:expr, $($unit:ident:)? $value:expr
@@ -14,10 +21,13 @@ macro_rules! metric {
                 $($((None, &$tag_only_val),)*)?
             ],
             value: $value.into(),
+
+            __private: (),
         }
     }};
 }
 
+/// Records a counter [`Metric`](crate::Metric) with the global [`Recorder`](crate::Recorder).
 #[macro_export]
 macro_rules! counter {
     ($($tt:tt)+) => {
@@ -25,6 +35,7 @@ macro_rules! counter {
     }
 }
 
+/// Records a gauge [`Metric`](crate::Metric) with the global [`Recorder`](crate::Recorder).
 #[macro_export]
 macro_rules! gauge {
     ($($tt:tt)+) => {
@@ -32,6 +43,7 @@ macro_rules! gauge {
     }
 }
 
+/// Records a distribution [`Metric`](crate::Metric) with the global [`Recorder`](crate::Recorder).
 #[macro_export]
 macro_rules! distribution {
     ($($tt:tt)+) => {

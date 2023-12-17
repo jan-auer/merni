@@ -2,8 +2,20 @@
 name = "merni"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+authors = [
+    "Arpad Borsos <swatinem@swatinem.de>",
+]
+documentation = "https://docs.rs/merni"
+homepage = "https://github.com/Swatinem/merni"
+repository = "https://github.com/Swatinem/merni"
+description = "A low overhead metrics implementation."
+
+[features]
+cadence1 = ["dep:cadence"]
 
 [dependencies]
+cadence = { version = "1.0.0", optional = true }
 
 [dev-dependencies]
 cadence = "1.0.0"
@@ -12,6 +24,10 @@ cadence-macros = "1.0.0"
 divan = "0.1.7"
 metrics = "0.21.1"
 metrics-exporter-statsd = "0.6.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 # DIVAN_MIN_TIME=0.25 DIVAN_THREADS=1 DIVAN_ITEMS_COUNT=1 cargo bench
 [profile.bench]

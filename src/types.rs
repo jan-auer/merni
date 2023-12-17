@@ -1,11 +1,18 @@
 use core::fmt::{self, Display};
 // use std::time::Duration;
 
+/// The Type of a Metric.
+///
+/// Counters, Gauges and Distributions are supported,
+/// with more types to be added later.
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum MetricType {
+    /// A counter metric, using the StatsD `c` type.
     Counter,
+    /// A gauge metric, using the StatsD `g` type.
     Gauge,
+    /// A distribution metric, using the StatsD `d` type.
     Distribution,
     // Timer,
     // Meter,
@@ -14,6 +21,7 @@ pub enum MetricType {
 }
 
 impl MetricType {
+    /// Returns the StatsD metrics type.
     pub fn as_str(&self) -> &str {
         match self {
             MetricType::Counter => "c",
@@ -29,17 +37,28 @@ impl Display for MetricType {
     }
 }
 
+/// The Unit of a Metric.
+///
+/// This is unused for now.
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum MetricUnit {
+    /// An unknown fallback unit.
     Unknown,
 }
 
+/// A Metric Value.
+///
+/// This supports various numeric values for now, but might gain support for
+/// `Duration` and other types later on.
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum MetricValue {
+    /// A signed value.
     I64(i64),
+    /// An unsigned value.
     U64(u64),
+    /// A floating-point value.
     F64(f64),
     // Duration(Duration)
 }
@@ -71,13 +90,29 @@ into_metric_value!(i8, i16, i32, i64 => I64);
 into_metric_value!(u8, u16, u32, u64 => U64);
 into_metric_value!(f32, f64 => F64);
 
+/// An alias for a list of Metric tags.
 pub type MetricTags<'a> = &'a [(Option<&'a dyn Display>, &'a dyn Display)];
 
+/// A fully types Metric.
+///
+/// Most importantly, the metric has a [`ty`](MetricType), a `key` and a [`value`](MetricValue).
+/// It can also have a list of [`tags`](MetricTags).
+///
+/// This struct might change in the future, and one should construct it via
+/// the [`metric!`](crate::metric) macro instead.
 pub struct Metric<'a> {
+    /// The key, or name, of the metric.
     pub key: &'a dyn Display,
+    /// The type of metric.
     pub ty: MetricType,
+    /// The metric unit.
     pub unit: MetricUnit,
 
+    /// A list of tags for this metric.
     pub tags: MetricTags<'a>,
+    /// The metrics value.
     pub value: MetricValue,
+
+    #[doc(hidden)]
+    pub __private: (),
 }

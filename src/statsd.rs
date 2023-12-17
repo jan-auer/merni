@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::fmt::{Display, Write};
+use std::fmt::{Debug, Display, Write};
 
 use crate::{Metric, Recorder};
 
@@ -7,17 +7,33 @@ thread_local! {
     static STRING_BUFFER: RefCell<String> = const { RefCell::new(String::new()) };
 }
 
+/// A generic sink used by the [`StatsdRecorder`].
 pub trait MetricSink {
+    /// Emits a StatsD-formatted `metric`.
     fn emit(&self, metric: &str);
 }
 
+/// A recorder emitting StatsD-formatted [`Metric`]s to a configured [`MetricSink`].
 pub struct StatsdRecorder<S> {
     prefix: String,
     sink: S,
     tags: String,
 }
 
+impl<S> Debug for StatsdRecorder<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StatsdRecorder")
+            .field("prefix", &self.prefix)
+            .field("formatted tags", &self.tags)
+            .finish_non_exhaustive()
+    }
+}
+
 impl<S> StatsdRecorder<S> {
+    /// Creates a new Recorder with the given `prefix` and `sink`.
+    ///
+    /// The recorder will emit [`Metric`]s to formatted in `statsd` format to the
+    /// configured [`MetricSink`].
     pub fn new(prefix: &str, sink: S) -> Self {
         let prefix = if prefix.is_empty() {
             String::new()
@@ -48,10 +64,12 @@ impl<S> StatsdRecorder<S> {
         self
     }
 
+    /// Add a global tag (as key/value) to this Recorder.
     pub fn with_tag(self, key: impl Display, value: impl Display) -> Self {
         self.write_tag(Some(&key), &value)
     }
 
+    /// Add a global tag (as a single value) to this Recorder.
     pub fn with_tag_value(self, value: impl Display) -> Self {
         self.write_tag(None, &value)
     }

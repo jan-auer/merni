@@ -1,8 +1,18 @@
+#![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg_hide))]
+#![cfg_attr(docsrs, doc(cfg_hide(doc)))]
+
+#[cfg(feature = "cadence1")]
+mod cadence1;
 mod globals;
 mod macros;
 mod statsd;
 mod types;
 
+#[cfg(feature = "cadence1")]
+pub use cadence1::*;
 pub use globals::*;
 pub use macros::*;
 pub use statsd::*;
