@@ -73,16 +73,8 @@ impl<const N: usize> TaggedMetric<N> {
         value: impl IntoMetricValue,
         tag_values: [&dyn Display; N],
     ) -> RecordedMetric {
-        let value = value.into_metric_value(self.unit);
-        self.record(value, &tag_values)
-    }
-}
-
-impl<const N: usize> Deref for TaggedMetric<N> {
-    type Target = MetricMeta;
-
-    fn deref(&self) -> &Self::Target {
-        &self.meta
+        let value = value.into_metric_value(self.meta.unit);
+        self.meta.record(value, &tag_values)
     }
 }
 
