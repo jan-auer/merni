@@ -6,7 +6,7 @@ use core::fmt::{self, Display};
 /// Counters, Gauges and Distributions are supported,
 /// with more types to be added later.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MetricType {
     /// A counter metric, using the StatsD `c` type.
     Counter,
@@ -41,7 +41,7 @@ impl Display for MetricType {
 ///
 /// This is unused for now.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum MetricUnit {
     /// An unknown fallback unit.
     Unknown,

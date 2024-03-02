@@ -10,6 +10,7 @@ mod globals;
 mod macros;
 mod statsd;
 mod types;
+mod types2;
 
 #[cfg(feature = "cadence1")]
 pub use cadence1::*;
@@ -17,6 +18,7 @@ pub use globals::*;
 pub use macros::*;
 pub use statsd::*;
 pub use types::*;
+pub use types2::*;
 
 #[cfg(test)]
 mod tests {
