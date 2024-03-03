@@ -1,8 +1,3 @@
-// use std::panic::Location;
-
-use std::fmt::Display;
-use std::ops::Deref;
-
 use crate::{MetricType, MetricUnit};
 
 #[doc(hidden)]
@@ -26,12 +21,14 @@ pub struct MetricMeta {
     ty: MetricType,
     unit: MetricUnit,
     key: &'static str,
+    // TODO:
+    // target: &'static str,
     location: Option<&'static Location<'static>>,
-    tag_keys: &'static [&'static str],
+    pub(crate) tag_keys: &'static [&'static str],
 }
 
 pub struct TaggedMetric<const N: usize> {
-    meta: MetricMeta,
+    pub(crate) meta: MetricMeta,
 }
 
 impl MetricMeta {
@@ -58,44 +55,27 @@ impl MetricMeta {
         TaggedMetric { meta: self }
     }
 
-    fn record(&'static self, value: f64, tag_values: InputTags) -> RecordedMetric {
-        let key = MetricKey {
-            meta: self,
-            tag_values: record_tags(tag_values),
-        };
-        RecordedMetric { key, value }
+    pub fn ty(&self) -> MetricType {
+        self.ty
     }
-}
 
-impl<const N: usize> TaggedMetric<N> {
-    pub fn emit(
-        &'static self,
-        value: impl IntoMetricValue,
-        tag_values: [&dyn Display; N],
-    ) -> RecordedMetric {
-        let value = value.into_metric_value(self.meta.unit);
-        self.meta.record(value, &tag_values)
+    pub fn unit(&self) -> MetricUnit {
+        self.unit
     }
-}
 
-pub trait IntoMetricValue {
-    fn into_metric_value(self, unit: MetricUnit) -> f64;
-}
+    pub fn key(&self) -> &'static str {
+        self.key
+    }
 
-pub struct RecordedMetric {
-    key: MetricKey,
-    value: f64,
-}
+    pub fn file(&self) -> Option<&'static str> {
+        self.location.as_ref().map(|l| l.file)
+    }
 
-type InputTags<'a> = &'a [&'a dyn Display];
-type SmolStr = Box<str>;
-type TagValues = Box<[SmolStr]>;
+    pub fn line(&self) -> Option<u32> {
+        self.location.as_ref().map(|l| l.line)
+    }
 
-pub struct MetricKey {
-    meta: &'static MetricMeta,
-    tag_values: TagValues,
-}
-
-fn record_tags(tags: InputTags) -> TagValues {
-    tags.iter().map(|d| d.to_string().into()).collect()
+    pub fn module_path(&self) -> Option<&'static str> {
+        self.location.as_ref().map(|l| l.module_path)
+    }
 }
