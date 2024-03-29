@@ -1,13 +1,11 @@
 use std::ops::Deref;
 
+use crate::tags::TagValues;
 use crate::MetricMeta;
 
-pub(crate) type SmolStr = Box<str>;
-pub(crate) type TagValues = Option<Box<[SmolStr]>>;
-
 pub struct MetricKey {
-    meta: &'static MetricMeta,
-    tag_values: TagValues,
+    pub(crate) meta: &'static MetricMeta,
+    pub(crate) tag_values: TagValues,
 }
 
 impl Deref for MetricKey {

@@ -12,6 +12,7 @@ mod key;
 // mod macros;
 mod metric;
 // mod statsd;
+mod tags;
 mod types;
 
 // #[cfg(feature = "cadence1")]

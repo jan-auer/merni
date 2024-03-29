@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
-use crate::{IntoMetricValue, MetricMeta, TaggedMetric};
+use crate::tags::{record_tags, InputTags};
+use crate::{IntoMetricValue, MetricKey, MetricMeta, TaggedMetric};
 
 pub struct Dispatcher {}
 
@@ -40,20 +41,4 @@ impl Dispatcher {
 pub struct RecordedMetric {
     key: MetricKey,
     value: f64,
-}
-
-type InputTags<'a> = &'a [&'a dyn Display];
-type SmolStr = Box<str>;
-type TagValues = Option<Box<[SmolStr]>>;
-
-pub struct MetricKey {
-    meta: &'static MetricMeta,
-    tag_values: TagValues,
-}
-
-fn record_tags(tags: InputTags) -> TagValues {
-    if tags.is_empty() {
-        return None;
-    }
-    Some(tags.iter().map(|d| d.to_string().into()).collect())
 }
