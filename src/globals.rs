@@ -1,20 +1,16 @@
+use std::cell::RefCell;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
-use crate::Metric;
+use crate::Dispatcher;
 
-/// The global [`Recorder`] which will receive [`Metric`] to be recorded.
-pub trait Recorder {
-    /// Instructs the recorder to record the given [`Metric`].
-    fn record_metric(&self, metric: Metric<'_>);
+static GLOBAL_DISPATCHER: OnceLock<Dispatcher> = OnceLock::new();
+// because accessing a static global is faster than a thread local
+static LOCAL_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+thread_local! {
+    static LOCAL_DISPATCHER: RefCell<Option<&Dispatcher>> = const { RefCell::new(None) };
 }
-
-impl<T: Recorder + ?Sized> Recorder for Box<T> {
-    fn record_metric(&self, metric: Metric<'_>) {
-        (**self).record_metric(metric)
-    }
-}
-
-static GLOBAL_RECORDER: OnceLock<Box<dyn Recorder + Send + Sync + 'static>> = OnceLock::new();
 
 /// Initialize the global [`Recorder`].
 ///
@@ -22,33 +18,38 @@ static GLOBAL_RECORDER: OnceLock<Box<dyn Recorder + Send + Sync + 'static>> = On
 ///
 /// This function can only be called once, and subsequent calls will return an
 /// [`Err`] in case a global [`Recorder`] has already been initialized.
-pub fn init<R: Recorder + Send + Sync + 'static>(recorder: R) -> Result<(), R> {
-    let mut result = Err(recorder);
+pub fn set_global_default(dispatcher: Dispatcher) -> Result<(), Dispatcher> {
+    let mut result = Err(dispatcher);
     {
         let result = &mut result;
-        let _ = GLOBAL_RECORDER.get_or_init(|| {
-            let recorder = std::mem::replace(result, Ok(())).unwrap_err();
-            Box::new(recorder)
-        });
+        let _ = GLOBAL_DISPATCHER.get_or_init(|| std::mem::replace(result, Ok(())).unwrap_err());
     }
     result
 }
 
-/// Records a [`Metric`] with the globally configured [`Recorder`].
+/// Runs the closure with a [`Dispatcher`] if one is configured.
 ///
-/// This function will be a noop in case no global [`Recorder`] is configured.
-pub fn record_metric(metric: Metric<'_>) {
-    with_recorder(|r| r.record_metric(metric))
-}
-
-fn with_recorder<F, R>(f: F) -> R
+/// This prefers the thread-local dispatcher if one is defined,
+/// and otherwise falling back to the global dispatcher.
+pub fn with_dispatcher<F, R>(f: F) -> R
 where
-    F: FnOnce(&dyn Recorder) -> R,
+    F: FnOnce(&Dispatcher) -> R,
     R: Default,
 {
-    if let Some(recorder) = GLOBAL_RECORDER.get() {
-        f(recorder)
-    } else {
-        Default::default()
+    if LOCAL_COUNT.load(Ordering::Acquire) > 0 {
+        if let Some(result) = LOCAL_DISPATCHER.with_borrow(|dispatcher| {
+            if let Some(dispatcher) = dispatcher {
+                return Some(f(dispatcher));
+            }
+            None
+        }) {
+            return result;
+        }
     }
+
+    if let Some(dispatcher) = GLOBAL_DISPATCHER.get() {
+        return f(dispatcher);
+    }
+
+    Default::default()
 }

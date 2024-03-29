@@ -53,7 +53,7 @@ impl Dispatcher {
 }
 
 /// A metric to be recorded, with its [`MetricKey`], value, and the current timestamp.
-pub struct RecordedMetric {
+pub(crate) struct RecordedMetric {
     key: MetricKey,
     instant: Instant,
     value: f64,

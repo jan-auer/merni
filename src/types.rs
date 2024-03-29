@@ -15,7 +15,10 @@ pub enum MetricType {
     Gauge,
     /// A distribution metric.
     Distribution,
-    /// A timer metric, similar to [`MetricType::Distribution`].
+    /// A timer metric.
+    ///
+    /// This is similar to [`MetricType::Distribution`], except it defaults to
+    /// recording millisecond durations if no explicit [`MetricUnit`] was defined.
     Timer,
     // TODO?:
     // Histogram,

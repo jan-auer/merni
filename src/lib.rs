@@ -7,9 +7,9 @@
 // #[cfg(feature = "cadence1")]
 // mod cadence1;
 mod dispatch;
-// mod globals;
+mod globals;
 mod key;
-// mod macros;
+mod macros;
 mod metric;
 // mod statsd;
 mod tags;
@@ -19,12 +19,12 @@ mod types;
 // #[cfg(feature = "cadence1")]
 // pub use cadence1::*;
 pub use dispatch::*;
-// pub use globals::*;
+pub use globals::*;
 pub use key::*;
 // pub use macros::*;
 pub use metric::*;
 // pub use statsd::*;
 pub use types::*;
 
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;

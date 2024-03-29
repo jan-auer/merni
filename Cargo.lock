@@ -3,18 +3,6 @@
 version = 3
 
 [[package]]
-name = "ahash"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91429305e9f0a25f6205c5b8e0d2db09e0708a7a6df0f42212bb56c32c8ac97a"
-dependencies = [
- "cfg-if",
- "once_cell",
- "version_check",
- "zerocopy",
-]
-
-[[package]]
 name = "anstyle"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -34,29 +22,11 @@ checksum = "7ff69b9dd49fd426c69a0db9fc04dd934cdb6645ff000864d98f7e2af8830eaa"
 
 [[package]]
 name = "cadence"
-version = "0.29.1"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f39286bc075b023101dccdb79456a1334221c768b8faede0c2aff7ed29a9482d"
+checksum = "7611a627d6f459659e63e007fb6a01733a4dca558779fe019f66579068779d79"
 dependencies = [
  "crossbeam-channel",
-]
-
-[[package]]
-name = "cadence"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab51a759f502097abe855100b81b421d3a104b62a2c3209f751d90ce6dd2ea1"
-dependencies = [
- "crossbeam-channel",
-]
-
-[[package]]
-name = "cadence-macros"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9652b43e3b22b2f3e96d456d28f2f21be8567e055e27d6cba6c430d709381ea4"
-dependencies = [
- "cadence 1.0.0",
 ]
 
 [[package]]
@@ -99,11 +69,10 @@ checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.9"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14c3242926edf34aec4ac3a77108ad4854bffaa2e4ddc1824124ce59231302d5"
+checksum = "ab3db02a9c5b5121e1e42fbdb1aeb65f5e02624cc58c43f2884c6ccac0b82f95"
 dependencies = [
- "cfg-if",
  "crossbeam-utils",
 ]
 
@@ -115,9 +84,9 @@ checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
 name = "divan"
-version = "0.1.7"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77f3c37609833a14a598385904bd43c79724964bc4b0a3339968da85bec4e1e4"
+checksum = "a0d567df2c9c2870a43f3f2bd65aaeb18dbce1c18f217c3e564b4fbaeb3ee56c"
 dependencies = [
  "cfg-if",
  "clap",
@@ -129,9 +98,9 @@ dependencies = [
 
 [[package]]
 name = "divan-macros"
-version = "0.1.7"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4669c6c0b93fa1848f1aaebd95d2697e3216fd781ac9eb71527e578d9df0f8e"
+checksum = "27540baf49be0d484d8f0130d7d8da3011c32a44d4fc873368154f1510e574a2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -179,49 +148,12 @@ checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 name = "merni"
 version = "0.1.0"
 dependencies = [
- "cadence 0.29.1",
- "cadence 1.0.0",
- "cadence-macros",
+ "cadence",
  "crossbeam-utils",
  "divan",
- "metrics",
- "metrics-exporter-statsd",
  "quanta",
  "smallvec",
  "smol_str",
-]
-
-[[package]]
-name = "metrics"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fde3af1a009ed76a778cb84fdef9e7dbbdf5775ae3e4cc1f434a6a307f6f76c5"
-dependencies = [
- "ahash",
- "metrics-macros",
- "portable-atomic",
-]
-
-[[package]]
-name = "metrics-exporter-statsd"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e34a620eecf9e4321ebbef8f2f8e7cd22e098f11b65f2d987ce66faaa8918418"
-dependencies = [
- "cadence 0.29.1",
- "metrics",
- "thiserror",
-]
-
-[[package]]
-name = "metrics-macros"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddece26afd34c31585c74a4db0630c376df271c285d682d1e55012197830b6df"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -229,12 +161,6 @@ name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
-
-[[package]]
-name = "portable-atomic"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7170ef9988bc169ba16dd36a7fa041e5c4cbeb6a35b76d4c03daded371eae7c0"
 
 [[package]]
 name = "proc-macro2"
@@ -354,36 +280,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "thiserror"
-version = "1.0.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f11c217e1416d6f036b870f14e0413d480dbf28edbee1f877abaf0206af43bb7"
-dependencies = [
- "thiserror-impl",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.51"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01742297787513b79cf8e29d1056ede1313e2420b7b3b15d0a768b4921f549df"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
-
-[[package]]
-name = "version_check"
-version = "0.9.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "wasi"
@@ -608,23 +508,3 @@ name = "windows_x86_64_msvc"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dff9641d1cd4be8d1a070daf9e3773c5f67e78b4d9d42263020c057706765c04"
-
-[[package]]
-name = "zerocopy"
-version = "0.7.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c4061bedbb353041c12f413700357bec76df2c7e2ca8e4df8bac24c6bf68e3d"
-dependencies = [
- "zerocopy-derive",
-]
-
-[[package]]
-name = "zerocopy-derive"
-version = "0.7.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3c129550b3e6de3fd0ba67ba5c81818f9805e58b8d7fee80a3a59d2c9fc601a"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]

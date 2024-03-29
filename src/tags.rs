@@ -24,15 +24,15 @@ pub fn record_tags(tags: InputTags) -> TagValues {
 }
 
 #[derive(Default)]
-struct StringBuf<const N: usize> {
+pub struct StringBuf<const N: usize> {
     buf: SmallVec<u8, N>,
 }
 
 impl<const N: usize> StringBuf<N> {
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(&self.buf) }
     }
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.buf.clear()
     }
 }
