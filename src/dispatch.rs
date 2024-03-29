@@ -7,11 +7,17 @@ use crate::timer::Timer;
 use crate::{IntoMetricValue, MetricKey, MetricMeta, TaggedMetric};
 
 /// A Dispatcher that can be used to emit metrics.
+#[derive(Debug)]
 pub struct Dispatcher {
     timer: Timer,
 }
 
 impl Dispatcher {
+    #[cfg(test)]
+    pub fn with_timer(timer: Timer) -> Self {
+        Self { timer }
+    }
+
     /// Emit a metric value for the given metric.
     pub fn emit(&self, metric: &'static MetricMeta, value: impl IntoMetricValue) {
         let value = value.into_metric_value(metric);

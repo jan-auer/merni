@@ -2,6 +2,8 @@
 
 // use cadence::Counted as _;
 
+use self::timer::Timer;
+
 use super::*;
 
 #[test]
@@ -11,6 +13,25 @@ fn test_declare_macro() {
 
     let tagged_metric = declare_metric!(Gauge => "some.gauge": "tag1", "tag1");
     dbg!(tagged_metric);
+}
+
+#[test]
+fn test_dispatcher() {
+    let (timer, _mock) = Timer::mock();
+    let dispatcher = Dispatcher::with_timer(timer);
+    dbg!(&dispatcher);
+
+    let guard = set_local_dispatcher(dispatcher);
+    let called = with_dispatcher(|dispatcher| {
+        dbg!(dispatcher);
+        true
+    });
+    assert!(called);
+
+    let dispatcher = guard.take();
+    dbg!(&dispatcher);
+
+    with_dispatcher(|_dispatcher| unreachable!());
 }
 
 // #[test]
