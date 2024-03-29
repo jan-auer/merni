@@ -3,22 +3,25 @@ use std::fmt::Display;
 use crate::tags::{record_tags, InputTags};
 use crate::{IntoMetricValue, MetricKey, MetricMeta, TaggedMetric};
 
+/// A Dispatcher that can be used to emit metrics.
 pub struct Dispatcher {}
 
 impl Dispatcher {
-    pub fn emit(&self, meta: &'static MetricMeta, value: impl IntoMetricValue) {
-        let value = value.into_metric_value(meta);
+    /// Emit a metric value for the given metric.
+    pub fn emit(&self, metric: &'static MetricMeta, value: impl IntoMetricValue) {
+        let value = value.into_metric_value(metric);
 
-        self.record(meta, value, &[]);
+        self.record(metric, value, &[]);
     }
 
+    /// Emit a metric value along with tags for the given metric.
     pub fn emit_tagged<const N: usize>(
         &self,
-        meta: &'static TaggedMetric<N>,
+        metric: &'static TaggedMetric<N>,
         value: impl IntoMetricValue,
         tag_values: [&dyn Display; N],
     ) {
-        let TaggedMetric { meta } = meta;
+        let TaggedMetric { meta } = metric;
         let value = value.into_metric_value(meta);
 
         self.record(meta, value, &tag_values);
@@ -38,6 +41,7 @@ impl Dispatcher {
     }
 }
 
+/// A metric to be recorded, with its [`MetricKey`] and value.
 pub struct RecordedMetric {
     key: MetricKey,
     value: f64,

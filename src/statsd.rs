@@ -7,6 +7,24 @@ thread_local! {
     static STRING_BUFFER: RefCell<String> = const { RefCell::new(String::new()) };
 }
 
+impl Display for MetricType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+impl MetricType {
+    /// Returns the StatsD metrics type.
+    pub fn as_str(&self) -> &str {
+        match self {
+            MetricType::Counter => "c",
+            MetricType::Gauge => "g",
+            MetricType::Distribution => "d",
+            MetricType::Timer => "ms",
+            MetricType::Histogram => "h",
+        }
+    }
+}
+
 /// A generic sink used by the [`StatsdRecorder`].
 pub trait MetricSink {
     /// Emits a StatsD-formatted `metric`.

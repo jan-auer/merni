@@ -1,4 +1,3 @@
-use core::fmt::{self, Display};
 use std::time::Duration;
 
 use crate::MetricMeta;
@@ -10,38 +9,18 @@ use crate::MetricMeta;
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MetricType {
-    /// A counter metric, using the StatsD `c` type.
+    /// A counter metric.
     Counter,
-    /// A gauge metric, using the StatsD `g` type.
+    /// A gauge metric.
     Gauge,
-    /// A distribution metric, using the StatsD `d` type.
+    /// A distribution metric.
     Distribution,
-    /// A timer metric, similar to `Distribution`, but using the StatsD `ms` type.
+    /// A timer metric, similar to [`MetricType::Distribution`].
     Timer,
-    /// A histogram metric, similar to `Distribution`, but using the StatsD `h` type.
-    Histogram,
     // TODO?:
+    // Histogram,
     // Meter,
     // Set,
-}
-
-impl MetricType {
-    /// Returns the StatsD metrics type.
-    pub fn as_str(&self) -> &str {
-        match self {
-            MetricType::Counter => "c",
-            MetricType::Gauge => "g",
-            MetricType::Distribution => "d",
-            MetricType::Timer => "ms",
-            MetricType::Histogram => "h",
-        }
-    }
-}
-
-impl Display for MetricType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
 }
 
 /// The Unit of a Metric.
@@ -52,7 +31,12 @@ pub enum MetricUnit {
     Unknown,
 }
 
+/// A trait that turns any value into a metric value.
+///
+/// A metric value is represented as a [`f64`], and conversion has access to the
+/// [`MetricMeta`] and in particular its [`MetricUnit`] to do an appropriate conversion.
 pub trait IntoMetricValue {
+    /// Converts [`self`] into a metric value, guided by the given [`MetricMeta`].
     fn into_metric_value(self, meta: &MetricMeta) -> f64;
 }
 
@@ -77,7 +61,7 @@ into_metric_value!(
 );
 
 impl IntoMetricValue for bool {
-    fn into_metric_value(self, meta: &MetricMeta) -> f64 {
+    fn into_metric_value(self, _meta: &MetricMeta) -> f64 {
         if self {
             1.
         } else {
