@@ -2,6 +2,8 @@
 
 // use cadence::Counted as _;
 
+use std::time::Duration;
+
 use crate::testing::TestDispatcher;
 
 use super::*;
@@ -65,6 +67,8 @@ fn test_manual_emit() {
         dispatcher.emit(&METRIC, 1);
     });
 
+    dispatcher.advance_time(Duration::from_secs(1));
+
     with_dispatcher(|dispatcher| {
         static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
         static TAGGED_METRIC: TaggedMetricMeta<2> =
@@ -81,11 +85,19 @@ fn test_manual_emit() {
     assert_eq!(metrics[0].ty(), MetricType::Counter);
     assert_eq!(metrics[0].key(), "manual.counter");
     assert_eq!(metrics[0].file(), None);
+    assert_eq!(
+        metrics[0].timestamp().duration_since_unix_epoch(),
+        Duration::ZERO
+    );
     assert_eq!(metrics[0].value().get(), 1.);
 
     assert_eq!(metrics[1].ty(), MetricType::Gauge);
     assert_eq!(metrics[1].key(), "manual.gauge");
     assert_eq!(metrics[1].file(), Some("this_file.rs"));
+    assert_eq!(
+        metrics[1].timestamp().duration_since_unix_epoch(),
+        Duration::from_secs(1)
+    );
     assert_eq!(metrics[1].value().get(), 2.);
     assert_eq!(
         metrics[1].tags().collect::<Vec<_>>(),
