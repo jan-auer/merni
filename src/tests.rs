@@ -2,62 +2,26 @@
 
 // use cadence::Counted as _;
 
-use self::timer::Timer;
+use crate::testing::TestDispatcher;
 
 use super::*;
 
 #[test]
-fn test_manual_declare() {
-    static METRIC: MetricMeta =
-        MetricMeta::new(MetricType::Counter, MetricUnit::Unknown, "manual.counter");
-    dbg!(&METRIC);
+fn test_local_dispatcher() {
+    let dispatcher = TestDispatcher::new();
 
-    static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
-
-    static TAGGED_METRIC: TaggedMetric<2> = MetricMeta::new(
-        MetricType::Counter,
-        MetricUnit::Unknown,
-        "manual.tagged.counter",
-    )
-    .with_location(&LOCATION)
-    .with_tags(&["tag1", "tag2"]);
-
-    dbg!(&TAGGED_METRIC);
-}
-
-#[test]
-fn test_declare_macro() {
-    let metric = declare_metric!(Counter => "some.counter");
-    dbg!(metric);
-
-    let tagged_metric = declare_metric!(Gauge => "some.gauge": "tag1", "tag1");
-    dbg!(tagged_metric);
-}
-
-#[test]
-fn test_dispatcher() {
-    let (timer, _mock) = Timer::mock();
-    let dispatcher = Dispatcher::with_timer(timer);
-    dbg!(&dispatcher);
-
-    let guard = set_local_dispatcher(dispatcher);
-    let called = with_dispatcher(|dispatcher| {
-        dbg!(dispatcher);
-        true
-    });
+    let called = with_dispatcher(|_dispatcher| true);
     assert!(called);
 
-    let dispatcher = guard.take();
-    dbg!(&dispatcher);
+    let metrics = dispatcher.finish();
+    assert!(metrics.is_empty());
 
     with_dispatcher(|_dispatcher| unreachable!());
 }
 
 #[test]
 fn test_emit_macro() {
-    let (timer, _mock) = Timer::mock();
-    let dispatcher = Dispatcher::with_timer(timer);
-    let _guard = set_local_dispatcher(dispatcher);
+    let dispatcher = TestDispatcher::new();
 
     counter!("some.counter": 1);
 
@@ -65,27 +29,68 @@ fn test_emit_macro() {
     distribution!("some.distribution": 2, "foo" => foo, "bar" => "bar");
 
     gauge!("some.gauge": 3, "a" => 1 + 2 + 3, "b" => foo * 2);
+
+    let metrics = dispatcher.finish();
+    assert_eq!(metrics.len(), 3);
+
+    assert_eq!(metrics[0].ty(), MetricType::Counter);
+    assert_eq!(metrics[0].key(), "some.counter");
+    assert_eq!(metrics[0].value().get(), 1.);
+
+    assert_eq!(metrics[1].ty(), MetricType::Distribution);
+    assert_eq!(metrics[1].key(), "some.distribution");
+    assert_eq!(metrics[1].value().get(), 2.);
+    assert_eq!(
+        metrics[1].tags().collect::<Vec<_>>(),
+        &[("foo", "2"), ("bar", "bar")]
+    );
+
+    assert_eq!(metrics[2].ty(), MetricType::Gauge);
+    assert_eq!(metrics[2].key(), "some.gauge");
+    assert_eq!(metrics[2].value().get(), 3.);
+    assert_eq!(
+        metrics[2].tags().collect::<Vec<_>>(),
+        &[("a", "6"), ("b", "4")]
+    );
 }
 
 #[test]
 fn test_manual_emit() {
-    let (timer, _mock) = Timer::mock();
-    let dispatcher = Dispatcher::with_timer(timer);
-    let _guard = set_local_dispatcher(dispatcher);
+    let dispatcher = TestDispatcher::new();
 
-    let did_emit = with_dispatcher(|dispatcher| {
-        let metric = declare_metric!(Counter => "some.counter");
-        dispatcher.emit(metric, 1);
-        true
-    });
-    assert!(did_emit);
+    with_dispatcher(|dispatcher| {
+        static METRIC: MetricMeta =
+            MetricMeta::new(MetricType::Counter, MetricUnit::Unknown, "manual.counter");
 
-    let did_emit = with_dispatcher(|dispatcher| {
-        let tagged_metric = declare_metric!(Gauge => "some.gauge": "tag1", "tag1");
-        dispatcher.emit_tagged(tagged_metric, 2, [&123, &"tag value 2"]);
-        true
+        dispatcher.emit(&METRIC, 1);
     });
-    assert!(did_emit);
+
+    with_dispatcher(|dispatcher| {
+        static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
+        static TAGGED_METRIC: TaggedMetricMeta<2> =
+            MetricMeta::new(MetricType::Gauge, MetricUnit::Unknown, "manual.gauge")
+                .with_location(&LOCATION)
+                .with_tags(&["tag1", "tag2"]);
+
+        dispatcher.emit_tagged(&TAGGED_METRIC, 2, [&123, &"tag value 2"]);
+    });
+
+    let metrics = dispatcher.finish();
+    assert_eq!(metrics.len(), 2);
+
+    assert_eq!(metrics[0].ty(), MetricType::Counter);
+    assert_eq!(metrics[0].key(), "manual.counter");
+    assert_eq!(metrics[0].file(), None);
+    assert_eq!(metrics[0].value().get(), 1.);
+
+    assert_eq!(metrics[1].ty(), MetricType::Gauge);
+    assert_eq!(metrics[1].key(), "manual.gauge");
+    assert_eq!(metrics[1].file(), Some("this_file.rs"));
+    assert_eq!(metrics[1].value().get(), 2.);
+    assert_eq!(
+        metrics[1].tags().collect::<Vec<_>>(),
+        &[("tag1", "123"), ("tag2", "tag value 2")]
+    );
 }
 
 // #[test]

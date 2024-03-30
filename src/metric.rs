@@ -60,9 +60,9 @@ impl MetricMeta {
     pub const fn with_tags<const N: usize>(
         mut self,
         tag_keys: &'static [&'static str; N],
-    ) -> TaggedMetric<N> {
+    ) -> TaggedMetricMeta<N> {
         self.tag_keys = tag_keys;
-        TaggedMetric { meta: self }
+        TaggedMetricMeta { meta: self }
     }
 
     /// The metrics type.
@@ -96,6 +96,12 @@ impl MetricMeta {
     }
 }
 
+/// Metric metadata parameterized with the number of expected tags.
+#[derive(Debug)]
+pub struct TaggedMetricMeta<const N: usize> {
+    pub(crate) meta: MetricMeta,
+}
+
 /// The metric key, which represents a unique metric and its tags that is being emitted.
 #[derive(Debug)]
 pub struct MetricKey {
@@ -123,23 +129,25 @@ impl MetricKey {
     }
 }
 
-/// Metric metadata parameterized with the number of expected tags.
-#[derive(Debug)]
-pub struct TaggedMetric<const N: usize> {
-    pub(crate) meta: MetricMeta,
-}
-
-/// A metric to be recorded.
+/// A metric that is being emitted.
 ///
 /// This consists of its [`MetricKey`], [`MetricValue`], and the current [`Timestamp`].
 #[derive(Debug)]
-pub struct RecordedMetric {
+pub struct Metric {
     pub(crate) key: MetricKey,
     pub(crate) timestamp: Timestamp,
     pub(crate) value: MetricValue,
 }
 
-impl RecordedMetric {
+impl Deref for Metric {
+    type Target = MetricKey;
+
+    fn deref(&self) -> &Self::Target {
+        &self.key
+    }
+}
+
+impl Metric {
     /// Splits the recorded metric into its key, timestamp and value.
     pub fn into_parts(self) -> (MetricKey, Timestamp, MetricValue) {
         let Self {
@@ -148,5 +156,15 @@ impl RecordedMetric {
             value,
         } = self;
         (key, timestamp, value)
+    }
+
+    /// Returns the captured [`MetricValue`].
+    pub fn value(&self) -> MetricValue {
+        self.value
+    }
+
+    /// Returns the timestamp at which the metric was captured.
+    pub fn timestamp(&self) -> Timestamp {
+        self.timestamp
     }
 }

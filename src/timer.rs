@@ -4,9 +4,9 @@ use quanta::{Clock, Instant};
 
 #[derive(Debug)]
 pub struct Timer {
-    clock: Clock,
-    start_instant: Instant,
-    start_timestamp: Duration,
+    pub(crate) clock: Clock,
+    pub(crate) start_instant: Instant,
+    pub(crate) start_timestamp: Duration,
 }
 
 impl Timer {
@@ -22,19 +22,6 @@ impl Timer {
             start_instant,
             start_timestamp,
         }
-    }
-
-    #[cfg(test)]
-    pub fn mock() -> (Self, std::sync::Arc<quanta::Mock>) {
-        let (clock, mock) = quanta::Clock::mock();
-        let start_instant = clock.now();
-
-        let timer = Self {
-            clock,
-            start_instant,
-            start_timestamp: Duration::ZERO,
-        };
-        (timer, mock)
     }
 
     pub(crate) fn timestamp(&self) -> Timestamp {
@@ -53,7 +40,7 @@ impl Default for Timer {
 }
 
 /// The timestamp a metric was emitted.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Timestamp {
     timestamp: Duration,
 }

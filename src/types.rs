@@ -37,7 +37,7 @@ pub enum MetricUnit {
 /// The value of a metric.
 ///
 /// This is internally represented as a [`f64`].
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct MetricValue {
     value: f64,
 }
