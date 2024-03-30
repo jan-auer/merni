@@ -8,7 +8,6 @@
 // mod cadence1;
 mod dispatch;
 mod globals;
-mod key;
 mod macros;
 mod metric;
 // mod statsd;
@@ -16,15 +15,12 @@ mod tags;
 mod timer;
 mod types;
 
-// #[cfg(feature = "cadence1")]
-// pub use cadence1::*;
-pub use dispatch::*;
-pub use globals::*;
-pub use key::*;
-// pub use macros::*;
-pub use metric::*;
-// pub use statsd::*;
-pub use types::*;
+pub use dispatch::Dispatcher;
+pub use globals::{
+    set_global_dispatcher, set_local_dispatcher, with_dispatcher, LocalDispatcherGuard,
+};
+pub use metric::{Location, MetricKey, MetricMeta, RecordedMetric, TaggedMetric};
+pub use types::{IntoMetricValue, MetricType, MetricUnit, MetricValue};
 
 #[cfg(test)]
 mod tests;

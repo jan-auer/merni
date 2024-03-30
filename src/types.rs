@@ -34,13 +34,33 @@ pub enum MetricUnit {
     Unknown,
 }
 
-/// A trait that turns any value into a metric value.
+/// The value of a metric.
 ///
-/// A metric value is represented as a [`f64`], and conversion has access to the
+/// This is internally represented as a [`f64`].
+#[derive(Debug)]
+pub struct MetricValue {
+    value: f64,
+}
+
+impl MetricValue {
+    /// Creates a metric value.
+    pub fn new(value: f64) -> Self {
+        Self { value }
+    }
+
+    /// Returns the metric value as a [`f64`].
+    pub fn get(&self) -> f64 {
+        self.value
+    }
+}
+
+/// A trait that turns any value into a [`MetricValue`].
+///
+/// A metric value is represented as an [`f64`], and conversion has access to the
 /// [`MetricMeta`] and in particular its [`MetricUnit`] to do an appropriate conversion.
 pub trait IntoMetricValue {
     /// Converts [`self`] into a metric value, guided by the given [`MetricMeta`].
-    fn into_metric_value(self, meta: &MetricMeta) -> f64;
+    fn into_metric_value(self, meta: &MetricMeta) -> MetricValue;
 }
 
 macro_rules! into_metric_value {
@@ -48,8 +68,8 @@ macro_rules! into_metric_value {
         $(
             impl IntoMetricValue for $ty {
                 #[inline(always)]
-                fn into_metric_value(self: $ty, _meta: &MetricMeta) -> f64 {
-                    self as f64
+                fn into_metric_value(self: $ty, _meta: &MetricMeta) -> MetricValue {
+                    MetricValue::new(self as f64)
                 }
             }
         )+
@@ -64,19 +84,15 @@ into_metric_value!(
 );
 
 impl IntoMetricValue for bool {
-    fn into_metric_value(self, _meta: &MetricMeta) -> f64 {
-        if self {
-            1.
-        } else {
-            0.
-        }
+    fn into_metric_value(self, _meta: &MetricMeta) -> MetricValue {
+        MetricValue::new(if self { 1. } else { 0. })
     }
 }
 
 impl IntoMetricValue for Duration {
-    fn into_metric_value(self, meta: &MetricMeta) -> f64 {
+    fn into_metric_value(self, meta: &MetricMeta) -> MetricValue {
         let secs = self.as_secs_f64();
-        match meta.unit() {
+        MetricValue::new(match meta.unit() {
             MetricUnit::Unknown => {
                 if meta.ty() == MetricType::Timer {
                     secs * 1_000.
@@ -84,6 +100,6 @@ impl IntoMetricValue for Duration {
                     secs
                 }
             }
-        }
+        })
     }
 }

@@ -1,4 +1,8 @@
-use crate::{MetricType, MetricUnit};
+use std::ops::Deref;
+
+use crate::tags::TagValues;
+use crate::timer::Timestamp;
+use crate::{MetricType, MetricUnit, MetricValue};
 
 /// A source code location that can be added to a metric.
 #[derive(Debug)]
@@ -32,12 +36,6 @@ pub struct MetricMeta {
     // target: &'static str,
     location: Option<&'static Location<'static>>,
     pub(crate) tag_keys: &'static [&'static str],
-}
-
-/// Metric metadata parameterized with the number of expected tags.
-#[derive(Debug)]
-pub struct TaggedMetric<const N: usize> {
-    pub(crate) meta: MetricMeta,
 }
 
 impl MetricMeta {
@@ -95,5 +93,60 @@ impl MetricMeta {
     /// The source code module path the metric is defined in, if available.
     pub fn module_path(&self) -> Option<&'static str> {
         self.location.as_ref().map(|l| l.module_path)
+    }
+}
+
+/// The metric key, which represents a unique metric and its tags that is being emitted.
+#[derive(Debug)]
+pub struct MetricKey {
+    pub(crate) meta: &'static MetricMeta,
+    pub(crate) tag_values: TagValues,
+}
+
+impl Deref for MetricKey {
+    type Target = MetricMeta;
+
+    fn deref(&self) -> &Self::Target {
+        self.meta
+    }
+}
+
+impl MetricKey {
+    /// Iterates over the tag keys and values of this metric.
+    pub fn tags(&self) -> impl Iterator<Item = (&str, &str)> {
+        let values = self.tag_values.as_deref().unwrap_or_default();
+        self.meta
+            .tag_keys
+            .iter()
+            .copied()
+            .zip(values.iter().map(|s| s.as_ref()))
+    }
+}
+
+/// Metric metadata parameterized with the number of expected tags.
+#[derive(Debug)]
+pub struct TaggedMetric<const N: usize> {
+    pub(crate) meta: MetricMeta,
+}
+
+/// A metric to be recorded.
+///
+/// This consists of its [`MetricKey`], [`MetricValue`], and the current [`Timestamp`].
+#[derive(Debug)]
+pub struct RecordedMetric {
+    pub(crate) key: MetricKey,
+    pub(crate) timestamp: Timestamp,
+    pub(crate) value: MetricValue,
+}
+
+impl RecordedMetric {
+    /// Splits the recorded metric into its key, timestamp and value.
+    pub fn into_parts(self) -> (MetricKey, Timestamp, MetricValue) {
+        let Self {
+            key,
+            timestamp,
+            value,
+        } = self;
+        (key, timestamp, value)
     }
 }

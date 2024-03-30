@@ -1,10 +1,8 @@
 use std::fmt::Display;
 
-use quanta::Instant;
-
 use crate::tags::{record_tags, InputTags};
 use crate::timer::Timer;
-use crate::{IntoMetricValue, MetricKey, MetricMeta, TaggedMetric};
+use crate::{IntoMetricValue, MetricKey, MetricMeta, MetricValue, RecordedMetric, TaggedMetric};
 
 /// A Dispatcher that can be used to emit metrics.
 #[derive(Debug)]
@@ -41,26 +39,21 @@ impl Dispatcher {
     fn record(
         &self,
         meta: &'static MetricMeta,
-        value: f64,
+        value: MetricValue,
         tag_values: InputTags,
     ) -> RecordedMetric {
         let key = MetricKey {
             meta,
             tag_values: record_tags(tag_values),
         };
-        let instant = self.timer.now();
+        let timestamp = self.timer.timestamp();
 
-        RecordedMetric {
+        let metric = RecordedMetric {
             key,
-            instant,
+            timestamp,
             value,
-        }
-    }
-}
+        };
 
-/// A metric to be recorded, with its [`MetricKey`], value, and the current timestamp.
-pub(crate) struct RecordedMetric {
-    key: MetricKey,
-    instant: Instant,
-    value: f64,
+        dbg!(metric)
+    }
 }

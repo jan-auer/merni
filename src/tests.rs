@@ -7,6 +7,25 @@ use self::timer::Timer;
 use super::*;
 
 #[test]
+fn test_manual_declare() {
+    static METRIC: MetricMeta =
+        MetricMeta::new(MetricType::Counter, MetricUnit::Unknown, "manual.counter");
+    dbg!(&METRIC);
+
+    static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
+
+    static TAGGED_METRIC: TaggedMetric<2> = MetricMeta::new(
+        MetricType::Counter,
+        MetricUnit::Unknown,
+        "manual.tagged.counter",
+    )
+    .with_location(&LOCATION)
+    .with_tags(&["tag1", "tag2"]);
+
+    dbg!(&TAGGED_METRIC);
+}
+
+#[test]
 fn test_declare_macro() {
     let metric = declare_metric!(Counter => "some.counter");
     dbg!(metric);
@@ -32,6 +51,41 @@ fn test_dispatcher() {
     dbg!(&dispatcher);
 
     with_dispatcher(|_dispatcher| unreachable!());
+}
+
+#[test]
+fn test_emit_macro() {
+    let (timer, _mock) = Timer::mock();
+    let dispatcher = Dispatcher::with_timer(timer);
+    let _guard = set_local_dispatcher(dispatcher);
+
+    counter!("some.counter": 1);
+
+    let foo = 2;
+    distribution!("some.distribution": 2, "foo" => foo, "bar" => "bar");
+
+    gauge!("some.gauge": 3, "a" => 1 + 2 + 3, "b" => foo * 2);
+}
+
+#[test]
+fn test_manual_emit() {
+    let (timer, _mock) = Timer::mock();
+    let dispatcher = Dispatcher::with_timer(timer);
+    let _guard = set_local_dispatcher(dispatcher);
+
+    let did_emit = with_dispatcher(|dispatcher| {
+        let metric = declare_metric!(Counter => "some.counter");
+        dispatcher.emit(metric, 1);
+        true
+    });
+    assert!(did_emit);
+
+    let did_emit = with_dispatcher(|dispatcher| {
+        let tagged_metric = declare_metric!(Gauge => "some.gauge": "tag1", "tag1");
+        dispatcher.emit_tagged(tagged_metric, 2, [&123, &"tag value 2"]);
+        true
+    });
+    assert!(did_emit);
 }
 
 // #[test]
