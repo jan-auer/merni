@@ -33,5 +33,5 @@ debug = 1
 
 # DIVAN_MIN_TIME=0.25 DIVAN_THREADS=1 DIVAN_ITEMS_COUNT=1 cargo bench
 [[bench]]
-name = "merni"
+name = "tags"
 harness = false
