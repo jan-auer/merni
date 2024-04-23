@@ -25,9 +25,9 @@ fn record_smallvec() {
     run(smallvec::record_tags)
 }
 
-fn run<F>(f: F)
+fn run<F, R>(f: F)
 where
-    F: Fn(InputTags) -> TagValues,
+    F: Fn(InputTags) -> R,
 {
     let tags: &[&dyn Display] = &[&true];
     black_box(f(black_box(tags)));
@@ -45,21 +45,12 @@ mod smallvec;
 mod naive {
     use super::*;
 
-    pub fn record_tags(tags: InputTags) -> TagValues {
+    pub fn record_tags(tags: InputTags) -> Option<Vec<String>> {
         if tags.is_empty() {
             return None;
         }
 
-        let mut string_buf = String::new();
-
-        let mut collected_tags = Vec::with_capacity(tags.len());
-        for tag in tags {
-            write!(&mut string_buf, "{tag}").unwrap();
-            collected_tags.push(SmolStr::new(string_buf.as_str()));
-            string_buf.clear();
-        }
-
-        Some(collected_tags.into_boxed_slice())
+        Some(tags.iter().map(|d| d.to_string()).collect())
     }
 }
 
