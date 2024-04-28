@@ -1,5 +1,6 @@
 use std::fmt::Write;
 
+use smol_buf::Str24;
 use smol_str::{format_smolstr, SmolStr};
 
 pub fn vec_string() {
@@ -106,6 +107,23 @@ pub fn smallvec_smolstr() {
                 string_buf.as_str().into()
             })
             .collect();
+        Some(collected_tags.into_boxed_slice())
+    })
+}
+
+pub fn smolbuf_opt() {
+    run(|tags| -> Option<Box<[Str24]>> {
+        if tags.is_empty() {
+            return None;
+        }
+
+        let mut string_buf = StringBuf::<128>::default();
+        let mut collected_tags = Vec::with_capacity(tags.len());
+        for tag in tags {
+            string_buf.clear();
+            write!(&mut string_buf, "{tag}").unwrap();
+            collected_tags.push(Str24::new(string_buf.as_str()));
+        }
         Some(collected_tags.into_boxed_slice())
     })
 }
