@@ -1,10 +1,10 @@
 use std::fmt::{Display, Write};
 
 use smallvec::SmallVec;
-use smol_str::SmolStr;
+use smol_buf::Str24;
 
 pub type InputTags<'a> = &'a [&'a dyn Display];
-pub type TagValues = Option<Box<[SmolStr]>>;
+pub type TagValues = Option<Box<[Str24]>>;
 
 pub fn record_tags(tags: InputTags) -> TagValues {
     if tags.is_empty() {
@@ -12,11 +12,11 @@ pub fn record_tags(tags: InputTags) -> TagValues {
     }
 
     let mut string_buf = StringBuf::<128>::default();
+    let mut collected_tags = Vec::with_capacity(tags.len());
 
-    let mut collected_tags = SmallVec::<SmolStr, 5>::with_capacity(tags.len());
     for tag in tags {
         write!(&mut string_buf, "{tag}").unwrap();
-        collected_tags.push(SmolStr::new(string_buf.as_str()));
+        collected_tags.push(string_buf.as_str().into());
         string_buf.clear();
     }
 
