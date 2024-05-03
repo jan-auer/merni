@@ -33,10 +33,10 @@ pub fn boxed_boxed() {
 }
 
 pub fn thread_local() {
-    use std::cell::Cell;
+    use std::cell::RefCell;
 
     thread_local! {
-        static BUFFER: Cell<String> = const { Cell::new(String::new()) };
+        static BUFFER: RefCell<String> = const { RefCell::new(String::new()) };
     }
 
     run(|tags| -> Option<Box<[Box<str>]>> {
@@ -44,18 +44,15 @@ pub fn thread_local() {
             return None;
         }
 
-        let mut string_buf = BUFFER.take();
-
-        let collected_tags: Vec<_> = tags
-            .iter()
-            .map(|d| {
-                string_buf.clear();
-                write!(&mut string_buf, "{d}").unwrap();
-                string_buf.as_str().into()
-            })
-            .collect();
-
-        BUFFER.set(string_buf);
+        let collected_tags: Vec<_> = BUFFER.with_borrow_mut(|string_buf| {
+            tags.iter()
+                .map(|d| {
+                    string_buf.clear();
+                    write!(string_buf, "{d}").unwrap();
+                    string_buf.as_str().into()
+                })
+                .collect()
+        });
 
         Some(collected_tags.into_boxed_slice())
     })
@@ -111,7 +108,7 @@ pub fn smallvec_smolstr() {
     })
 }
 
-pub fn smolbuf_opt() {
+pub fn smolbuf() {
     run(|tags| -> Option<Box<[Str24]>> {
         if tags.is_empty() {
             return None;

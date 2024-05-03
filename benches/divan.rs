@@ -43,6 +43,6 @@ fn _7_smallvec_smolstr() {
 }
 
 #[divan::bench]
-fn _8_smolbuf_opt() {
-    benches::smolbuf_opt()
+fn _8_smolbuf() {
+    benches::smolbuf()
 }
