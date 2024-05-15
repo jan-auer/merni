@@ -40,12 +40,17 @@ impl Default for Timer {
 }
 
 /// The timestamp a metric was emitted.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Timestamp {
     timestamp: Duration,
 }
 
 impl Timestamp {
+    /// The lowest possible timestamp.
+    pub(crate) const ZERO: Timestamp = Self {
+        timestamp: Duration::ZERO,
+    };
+
     /// Returns the [`Duration`] since the unix epoch.
     ///
     /// This can further be used with [`SystemTime`] or any other datetime crate

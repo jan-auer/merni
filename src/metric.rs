@@ -5,7 +5,7 @@ use crate::timer::Timestamp;
 use crate::{MetricType, MetricUnit, MetricValue};
 
 /// A source code location that can be added to a metric.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Location<'a> {
     file: &'a str,
     line: u32,
@@ -27,7 +27,7 @@ impl<'a> Location<'a> {
 ///
 /// This includes its type, unit, the metrics name (or key), and possibly
 /// the code location at which it is emitted.
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct MetricMeta {
     ty: MetricType,
     unit: MetricUnit,
@@ -126,6 +126,16 @@ impl MetricKey {
             .iter()
             .copied()
             .zip(values.iter().map(|s| s.as_ref()))
+    }
+
+    /// Removes the [`Location`] from this metric,
+    /// in order to aggregate metrics ignoring the source code location.
+    pub(crate) fn without_location(self) -> (MetricMeta, TagValues) {
+        let meta = MetricMeta {
+            location: None,
+            ..*self.meta
+        };
+        (meta, self.tag_values)
     }
 }
 

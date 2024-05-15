@@ -11,6 +11,7 @@ mod globals;
 mod macros;
 mod metric;
 // mod statsd;
+mod aggregator;
 mod sink;
 mod tags;
 mod timer;

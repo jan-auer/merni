@@ -23,6 +23,7 @@ quanta = "0.12.2"
 smallvec = "2.0.0-alpha.5"
 smol_buf = "0.1.0"
 smol_str = "0.2.1"
+thread_local = "1.1.8"
 
 [dev-dependencies]
 divan = "0.1.14"
