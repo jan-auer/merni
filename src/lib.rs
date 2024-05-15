@@ -8,7 +8,8 @@
 // mod cadence1;
 mod dispatch;
 mod globals;
-mod macros;
+#[doc(hidden)]
+pub mod macros;
 mod metric;
 // mod statsd;
 mod aggregator;
@@ -17,6 +18,7 @@ mod tags;
 mod timer;
 mod types;
 
+pub use aggregator::ThreadLocalAggregator;
 pub use dispatch::Dispatcher;
 pub use globals::{
     set_global_dispatcher, set_local_dispatcher, with_dispatcher, LocalDispatcherGuard,

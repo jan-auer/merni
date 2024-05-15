@@ -83,6 +83,7 @@ pub(crate) struct PreAggregations {
 }
 
 /// An aggregator that uses fast thread-local "pre"-aggregation.
+#[derive(Clone)]
 pub struct ThreadLocalAggregator {
     /// The thread-local "pre"-aggregations.
     pub(crate) aggregations: Arc<ThreadLocal<CachePadded<Mutex<PreAggregations>>>>,
