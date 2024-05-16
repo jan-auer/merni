@@ -1,8 +1,8 @@
-use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
 use crossbeam_utils::CachePadded;
+use rustc_hash::FxHashMap as HashMap;
 use thread_local::ThreadLocal;
 
 use crate::sink::Sink;

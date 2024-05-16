@@ -313,6 +313,7 @@ dependencies = [
  "divan",
  "iai-callgrind",
  "quanta",
+ "rustc-hash",
  "smallvec",
  "smol_buf",
  "smol_str",
