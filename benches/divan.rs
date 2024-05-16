@@ -23,7 +23,7 @@ fn aggregator(bencher: Bencher) {
             Dispatcher::new(sink)
         })
         .bench_values(|dispatcher| {
-            let _guard = set_local_dispatcher(dispatcher);
+            let guard = set_local_dispatcher(dispatcher);
 
             for i in 0..count {
                 match i % CASES {
@@ -48,6 +48,8 @@ fn aggregator(bencher: Bencher) {
                     _ => unreachable!(),
                 }
             }
+
+            guard.take()
         });
 }
 

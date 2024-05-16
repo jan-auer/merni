@@ -27,14 +27,14 @@ impl<'a> Location<'a> {
 ///
 /// This includes its type, unit, the metrics name (or key), and possibly
 /// the code location at which it is emitted.
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct MetricMeta {
     ty: MetricType,
     unit: MetricUnit,
     key: &'static str,
     // TODO:
     // target: &'static str,
-    location: Option<&'static Location<'static>>,
+    pub(crate) location: Option<&'static Location<'static>>,
     pub(crate) tag_keys: &'static [&'static str],
 }
 
@@ -104,12 +104,12 @@ pub struct TaggedMetricMeta<const N: usize> {
 
 /// The metric key, which represents a unique metric and its tags that is being emitted.
 #[derive(Debug)]
-pub struct MetricKey {
-    pub(crate) meta: &'static MetricMeta,
+pub struct MetricKey<'meta> {
+    pub(crate) meta: &'meta MetricMeta,
     pub(crate) tag_values: TagValues,
 }
 
-impl Deref for MetricKey {
+impl<'meta> Deref for MetricKey<'meta> {
     type Target = MetricMeta;
 
     fn deref(&self) -> &Self::Target {
@@ -117,7 +117,7 @@ impl Deref for MetricKey {
     }
 }
 
-impl MetricKey {
+impl<'meta> MetricKey<'meta> {
     /// Iterates over the tag keys and values of this metric.
     pub fn tags(&self) -> impl Iterator<Item = (&str, &str)> {
         let values = self.tag_values.as_deref().unwrap_or_default();
@@ -127,16 +127,6 @@ impl MetricKey {
             .copied()
             .zip(values.iter().map(|s| s.as_ref()))
     }
-
-    /// Removes the [`Location`] from this metric,
-    /// in order to aggregate metrics ignoring the source code location.
-    pub(crate) fn without_location(self) -> (MetricMeta, TagValues) {
-        let meta = MetricMeta {
-            location: None,
-            ..*self.meta
-        };
-        (meta, self.tag_values)
-    }
 }
 
 /// A metric that is being emitted.
@@ -144,13 +134,13 @@ impl MetricKey {
 /// This consists of its [`MetricKey`], [`MetricValue`], and the current [`Timestamp`].
 #[derive(Debug)]
 pub struct Metric {
-    pub(crate) key: MetricKey,
+    pub(crate) key: MetricKey<'static>,
     pub(crate) timestamp: Timestamp,
     pub(crate) value: MetricValue,
 }
 
 impl Deref for Metric {
-    type Target = MetricKey;
+    type Target = MetricKey<'static>;
 
     fn deref(&self) -> &Self::Target {
         &self.key
@@ -159,7 +149,7 @@ impl Deref for Metric {
 
 impl Metric {
     /// Splits the recorded metric into its key, timestamp and value.
-    pub fn into_parts(self) -> (MetricKey, Timestamp, MetricValue) {
+    pub fn into_parts(self) -> (MetricKey<'static>, Timestamp, MetricValue) {
         let Self {
             key,
             timestamp,

@@ -114,6 +114,7 @@ fn test_aggregation() {
     let aggregations = Default::default();
     let sink = ThreadLocalAggregator {
         aggregations: Arc::clone(&aggregations),
+        thread: None,
     };
     let dispatcher = Dispatcher::new(sink).with_timer(timer);
 
