@@ -53,7 +53,7 @@ mod _1_stable_copy {
 
     fn get_value_global_override() -> Option<usize> {
         if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
-            if let Some(value) = LOCAL_VALUE.get() {
+            if let Some(value) = black_box(LOCAL_VALUE.get()) {
                 return Some(value);
             }
         }
@@ -62,7 +62,7 @@ mod _1_stable_copy {
     }
 
     fn get_value_local_fallback() -> Option<usize> {
-        if let Some(value) = LOCAL_VALUE.get() {
+        if let Some(value) = black_box(LOCAL_VALUE.get()) {
             return Some(value);
         }
 
@@ -71,30 +71,38 @@ mod _1_stable_copy {
 
     #[divan::bench]
     fn _1_global_override_unset() {
-        let value = get_value_global_override();
-        assert_eq!(value, Some(123));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_global_override());
+            assert_eq!(value, Some(123));
+        }
     }
 
     #[divan::bench]
-    fn _2_local_fallback_unset() {
-        let value = get_value_local_fallback();
-        assert_eq!(value, Some(123));
-    }
-
-    #[divan::bench]
-    fn _3_local_fallback_set() {
+    fn _2_local_fallback_set() {
         let _guard = set_local(false, black_box(234));
 
-        let value = get_value_local_fallback();
-        assert_eq!(value, Some(234));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_local_fallback());
+            assert_eq!(value, Some(234));
+        }
+    }
+
+    #[divan::bench]
+    fn _3_local_fallback_unset() {
+        for _ in 0..1_000 {
+            let value = black_box(get_value_local_fallback());
+            assert_eq!(value, Some(123));
+        }
     }
 
     #[divan::bench]
     fn _4_global_override_set() {
         let _guard = set_local(true, black_box(234));
 
-        let value = get_value_global_override();
-        assert_eq!(value, Some(234));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_global_override());
+            assert_eq!(value, Some(234));
+        }
     }
 }
 
@@ -134,7 +142,7 @@ mod _2_stable_drop {
     fn with_value_global_override(f: impl FnOnce(Option<&str>)) {
         if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
             return LOCAL_VALUE.with_borrow(|value| {
-                if let Some(value) = value {
+                if let Some(value) = black_box(value) {
                     f(Some(value))
                 } else {
                     f(GLOBAL_DROP.get().map(|s| s.as_str()))
@@ -146,7 +154,7 @@ mod _2_stable_drop {
 
     fn with_value_local_fallback(f: impl FnOnce(Option<&str>)) {
         LOCAL_VALUE.with_borrow(|value| {
-            if let Some(value) = value {
+            if let Some(value) = black_box(value) {
                 f(Some(value))
             } else {
                 f(GLOBAL_DROP.get().map(|s| s.as_str()))
@@ -156,34 +164,42 @@ mod _2_stable_drop {
 
     #[divan::bench]
     fn _1_global_override_unset() {
-        with_value_global_override(|value| {
-            assert_eq!(value, Some("the global str"));
-        });
+        for _ in 0..1_000 {
+            with_value_global_override(|value| {
+                assert_eq!(black_box(value), Some("the global str"));
+            });
+        }
     }
 
     #[divan::bench]
-    fn _2_local_fallback_unset() {
-        with_value_local_fallback(|value| {
-            assert_eq!(value, Some("the global str"));
-        });
-    }
-
-    #[divan::bench]
-    fn _3_local_fallback_set() {
+    fn _2_local_fallback_set() {
         let _guard = set_local(false, black_box(String::from("the local str")));
 
-        with_value_local_fallback(|value| {
-            assert_eq!(value, Some("the local str"));
-        });
+        for _ in 0..1_000 {
+            with_value_local_fallback(|value| {
+                assert_eq!(black_box(value), Some("the local str"));
+            });
+        }
+    }
+
+    #[divan::bench]
+    fn _3_local_fallback_unset() {
+        for _ in 0..1_000 {
+            with_value_local_fallback(|value| {
+                assert_eq!(black_box(value), Some("the global str"));
+            });
+        }
     }
 
     #[divan::bench]
     fn _4_global_override_set() {
         let _guard = set_local(true, black_box(String::from("the local str")));
 
-        with_value_global_override(|value| {
-            assert_eq!(value, Some("the local str"));
-        });
+        for _ in 0..1_000 {
+            with_value_global_override(|value| {
+                assert_eq!(black_box(value), Some("the local str"));
+            });
+        }
     }
 }
 
@@ -222,7 +238,7 @@ mod _3_nightly_copy {
 
     fn get_value_global_override() -> Option<usize> {
         if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
-            if let Some(value) = unsafe { LOCAL_VALUE } {
+            if let Some(value) = black_box(unsafe { LOCAL_VALUE }) {
                 return Some(value);
             }
         }
@@ -231,7 +247,7 @@ mod _3_nightly_copy {
     }
 
     fn get_value_local_fallback() -> Option<usize> {
-        if let Some(value) = unsafe { LOCAL_VALUE } {
+        if let Some(value) = black_box(unsafe { LOCAL_VALUE }) {
             return Some(value);
         }
 
@@ -240,30 +256,38 @@ mod _3_nightly_copy {
 
     #[divan::bench]
     fn _1_global_override_unset() {
-        let value = get_value_global_override();
-        assert_eq!(value, Some(123));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_global_override());
+            assert_eq!(value, Some(123));
+        }
     }
 
     #[divan::bench]
-    fn _2_local_fallback_unset() {
-        let value = get_value_local_fallback();
-        assert_eq!(value, Some(123));
-    }
-
-    #[divan::bench]
-    fn _3_local_fallback_set() {
+    fn _2_local_fallback_set() {
         let _guard = set_local(false, black_box(234));
 
-        let value = get_value_local_fallback();
-        assert_eq!(value, Some(234));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_local_fallback());
+            assert_eq!(value, Some(234));
+        }
+    }
+
+    #[divan::bench]
+    fn _3_local_fallback_unset() {
+        for _ in 0..1_000 {
+            let value = black_box(get_value_local_fallback());
+            assert_eq!(value, Some(123));
+        }
     }
 
     #[divan::bench]
     fn _4_global_override_set() {
         let _guard = set_local(true, black_box(234));
 
-        let value = get_value_global_override();
-        assert_eq!(value, Some(234));
+        for _ in 0..1_000 {
+            let value = black_box(get_value_global_override());
+            assert_eq!(value, Some(234));
+        }
     }
 }
 
@@ -302,7 +326,7 @@ mod _4_nightly_drop {
 
     fn with_value_global_override(f: impl FnOnce(Option<&str>)) {
         if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
-            if let Some(value) = unsafe { LOCAL_VALUE.as_ref() } {
+            if let Some(value) = black_box(unsafe { LOCAL_VALUE.as_ref() }) {
                 return f(Some(value));
             }
         }
@@ -310,7 +334,7 @@ mod _4_nightly_drop {
     }
 
     fn with_value_local_fallback(f: impl FnOnce(Option<&str>)) {
-        if let Some(value) = unsafe { LOCAL_VALUE.as_ref() } {
+        if let Some(value) = black_box(unsafe { LOCAL_VALUE.as_ref() }) {
             return f(Some(value));
         }
         f(GLOBAL_DROP.get().map(|s| s.as_str()))
@@ -318,33 +342,41 @@ mod _4_nightly_drop {
 
     #[divan::bench]
     fn _1_global_override_unset() {
-        with_value_global_override(|value| {
-            assert_eq!(value, Some("the global str"));
-        });
+        for _ in 0..1_000 {
+            with_value_global_override(|value| {
+                assert_eq!(black_box(value), Some("the global str"));
+            });
+        }
     }
 
     #[divan::bench]
-    fn _2_local_fallback_unset() {
-        with_value_local_fallback(|value| {
-            assert_eq!(value, Some("the global str"));
-        });
-    }
-
-    #[divan::bench]
-    fn _3_local_fallback_set() {
+    fn _2_local_fallback_set() {
         let _guard = set_local(false, black_box(String::from("the local str")));
 
-        with_value_local_fallback(|value| {
-            assert_eq!(value, Some("the local str"));
-        });
+        for _ in 0..1_000 {
+            with_value_local_fallback(|value| {
+                assert_eq!(black_box(value), Some("the local str"));
+            });
+        }
+    }
+
+    #[divan::bench]
+    fn _3_local_fallback_unset() {
+        for _ in 0..1_000 {
+            with_value_local_fallback(|value| {
+                assert_eq!(black_box(value), Some("the global str"));
+            });
+        }
     }
 
     #[divan::bench]
     fn _4_global_override_set() {
         let _guard = set_local(true, black_box(String::from("the local str")));
 
-        with_value_global_override(|value| {
-            assert_eq!(value, Some("the local str"));
-        });
+        for _ in 0..1_000 {
+            with_value_global_override(|value| {
+                assert_eq!(black_box(value), Some("the local str"));
+            });
+        }
     }
 }
