@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use crate::tags::TagValues;
-use crate::timer::Timestamp;
 use crate::{MetricType, MetricUnit, MetricValue};
 
 /// A source code location that can be added to a metric.
@@ -135,7 +134,6 @@ impl<'meta> MetricKey<'meta> {
 #[derive(Debug)]
 pub struct Metric {
     pub(crate) key: MetricKey<'static>,
-    pub(crate) timestamp: Timestamp,
     pub(crate) value: MetricValue,
 }
 
@@ -148,23 +146,8 @@ impl Deref for Metric {
 }
 
 impl Metric {
-    /// Splits the recorded metric into its key, timestamp and value.
-    pub fn into_parts(self) -> (MetricKey<'static>, Timestamp, MetricValue) {
-        let Self {
-            key,
-            timestamp,
-            value,
-        } = self;
-        (key, timestamp, value)
-    }
-
     /// Returns the captured [`MetricValue`].
     pub fn value(&self) -> MetricValue {
         self.value
-    }
-
-    /// Returns the timestamp at which the metric was captured.
-    pub fn timestamp(&self) -> Timestamp {
-        self.timestamp
     }
 }

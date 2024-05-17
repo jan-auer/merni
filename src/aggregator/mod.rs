@@ -11,8 +11,19 @@ use thread_local::ThreadLocal;
 
 use crate::sink::Sink;
 use crate::tags::TagValues;
-use crate::timer::Timestamp;
 use crate::{Location, Metric, MetricKey, MetricMeta, MetricType};
+
+use timer::Timestamp;
+
+use self::timer::Timer;
+
+mod timer;
+
+#[cfg(test)]
+mod testing;
+
+#[cfg(test)]
+mod tests;
 
 /// A wrapper around [`MetricKey`] optimized for [`HashMap`] operations
 /// by using pointer equality for its [`MetricMeta`].
@@ -95,6 +106,8 @@ pub struct ThreadLocalAggregator {
     /// The thread-local "pre"-aggregations.
     pub(crate) aggregations: ThreadLocalAggregations,
 
+    timer: Timer,
+
     pub(crate) thread: Option<(SyncSender<()>, JoinHandle<()>)>,
 }
 
@@ -125,6 +138,7 @@ impl ThreadLocalAggregator {
 
         Self {
             aggregations,
+            timer: Timer::new(),
             thread: Some((send_signal, thread)),
         }
     }
@@ -166,14 +180,15 @@ impl ThreadLocalAggregator {
             }
             MetricType::Gauge => {
                 let gauge = aggregations.gauges.entry(key).or_default();
+                gauge.last = value;
+                // FIXME: this is surprisingly expensive according to profiling
+                // gauge.last_timestamp = self.timer.timestamp();
+                gauge.last_timestamp = Timestamp::ZERO;
+
                 gauge.min = gauge.min.min(value);
                 gauge.max = gauge.max.max(value);
                 gauge.sum += value;
                 gauge.count += 1;
-                if metric.timestamp >= gauge.last_timestamp {
-                    gauge.last_timestamp = metric.timestamp;
-                    gauge.last = value;
-                }
             }
             MetricType::Distribution | MetricType::Timer => {
                 aggregations

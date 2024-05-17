@@ -2,12 +2,7 @@
 
 // use cadence::Counted as _;
 
-use std::sync::Arc;
-use std::time::Duration;
-
-use crate::aggregator::{Aggregations, ThreadLocalAggregator};
 use crate::testing::TestDispatcher;
-use crate::timer::Timer;
 
 use super::*;
 
@@ -70,8 +65,6 @@ fn test_manual_emit() {
         dispatcher.emit(&METRIC, 1);
     });
 
-    dispatcher.advance_time(Duration::from_secs(1));
-
     with_dispatcher(|dispatcher| {
         static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
         static TAGGED_METRIC: TaggedMetricMeta<2> =
@@ -88,61 +81,16 @@ fn test_manual_emit() {
     assert_eq!(metrics[0].ty(), MetricType::Counter);
     assert_eq!(metrics[0].key(), "manual.counter");
     assert_eq!(metrics[0].file(), None);
-    assert_eq!(
-        metrics[0].timestamp().duration_since_unix_epoch(),
-        Duration::ZERO
-    );
     assert_eq!(metrics[0].value().get(), 1.);
 
     assert_eq!(metrics[1].ty(), MetricType::Gauge);
     assert_eq!(metrics[1].key(), "manual.gauge");
     assert_eq!(metrics[1].file(), Some("this_file.rs"));
-    assert_eq!(
-        metrics[1].timestamp().duration_since_unix_epoch(),
-        Duration::from_secs(1)
-    );
     assert_eq!(metrics[1].value().get(), 2.);
     assert_eq!(
         metrics[1].tags().collect::<Vec<_>>(),
         &[("tag1", "123"), ("tag2", "tag value 2")]
     );
-}
-
-#[test]
-fn test_aggregation() {
-    let (timer, mock) = Timer::mock();
-    let aggregations = Default::default();
-    let sink = ThreadLocalAggregator {
-        aggregations: Arc::clone(&aggregations),
-        thread: None,
-    };
-    let dispatcher = Dispatcher::new(sink).with_timer(timer);
-
-    let guard = set_local_dispatcher(dispatcher);
-
-    gauge!("some.gauge": 1, "tag_key" => "tag_value");
-    gauge!("some.gauge": 2, "tag_key" => "tag_value");
-    mock.increment(Duration::from_millis(100));
-    gauge!("some.gauge": 3, "tag_key" => "tag_value");
-    mock.decrement(Duration::from_millis(100));
-    gauge!("some.gauge": 4, "tag_key" => "tag_value");
-
-    drop(guard);
-
-    let mut total_aggregation = Aggregations::default();
-    for aggregation in aggregations.iter() {
-        let mut aggregation = aggregation.lock().unwrap();
-        assert_eq!(aggregation.gauges.len(), 4); // implementation detail of `LocalKey`
-        total_aggregation.merge_aggregations(&mut aggregation);
-    }
-
-    assert_eq!(total_aggregation.gauges.len(), 1);
-    let gauge = total_aggregation.gauges.into_values().next().unwrap();
-
-    assert_eq!(gauge.count, 4);
-    assert_eq!(gauge.min, 1.);
-    assert_eq!(gauge.sum, 10.);
-    assert_eq!(gauge.last, 3.);
 }
 
 // #[test]

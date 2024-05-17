@@ -151,9 +151,8 @@ checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
 
 [[package]]
 name = "divan"
-version = "0.1.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0d567df2c9c2870a43f3f2bd65aaeb18dbce1c18f217c3e564b4fbaeb3ee56c"
+version = "0.1.13"
+source = "git+https://github.com/Swatinem/divan.git?branch=reuse-threads#a0f36c8d13c6645c870018aa2f20d8f917ea9a8f"
 dependencies = [
  "cfg-if",
  "clap",
@@ -165,9 +164,8 @@ dependencies = [
 
 [[package]]
 name = "divan-macros"
-version = "0.1.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27540baf49be0d484d8f0130d7d8da3011c32a44d4fc873368154f1510e574a2"
+version = "0.1.13"
+source = "git+https://github.com/Swatinem/divan.git?branch=reuse-threads#a0f36c8d13c6645c870018aa2f20d8f917ea9a8f"
 dependencies = [
  "proc-macro2",
  "quote",

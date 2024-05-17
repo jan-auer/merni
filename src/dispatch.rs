@@ -2,19 +2,16 @@ use std::fmt::{Debug, Display};
 
 use crate::sink::Sink;
 use crate::tags::{record_tags, InputTags};
-use crate::timer::Timer;
 use crate::{IntoMetricValue, Metric, MetricKey, MetricMeta, MetricValue, TaggedMetricMeta};
 
 /// A Dispatcher that can be used to emit metrics.
 pub struct Dispatcher {
-    pub(crate) timer: Timer,
     sink: Box<dyn Sink + Send + Sync + 'static>,
 }
 
 impl Debug for Dispatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Dispatcher")
-            .field("timer", &self.timer)
             .field("sink", &format_args!("..."))
             .finish()
     }
@@ -27,7 +24,6 @@ impl Dispatcher {
         S: Sink + Send + Sync + 'static,
     {
         Self {
-            timer: Timer::new(),
             sink: Box::new(sink),
         }
     }
@@ -57,13 +53,8 @@ impl Dispatcher {
             meta,
             tag_values: record_tags(tag_values),
         };
-        let timestamp = self.timer.timestamp();
 
-        let metric = Metric {
-            key,
-            timestamp,
-            value,
-        };
+        let metric = Metric { key, value };
 
         self.sink.emit(metric)
     }
