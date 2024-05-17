@@ -16,6 +16,7 @@ autobenches = false
 default = []
 aggregator = ["dep:quanta", "dep:crossbeam-utils", "dep:rustc-hash", "dep:thread_local"]
 cadence1 = ["dep:cadence"]
+nightly = []
 iai = []
 
 [dependencies]
@@ -46,6 +47,10 @@ debug = 1
 name = "divan"
 harness = false
 required-features = ["aggregator"]
+
+[[bench]]
+name = "locals"
+harness = false
 
 [[bench]]
 name = "callgrind"

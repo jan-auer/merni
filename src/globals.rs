@@ -46,7 +46,7 @@ impl Drop for LocalDispatcherGuard {
     fn drop(&mut self) {
         let previous = self.previous.take();
         if previous.is_none() {
-            LOCAL_COUNT.fetch_sub(1, Ordering::Release);
+            LOCAL_COUNT.fetch_sub(1, Ordering::Relaxed);
         }
         LOCAL_DISPATCHER.set(previous);
     }
@@ -59,7 +59,7 @@ impl Drop for LocalDispatcherGuard {
 pub fn set_local_dispatcher(dispatcher: Dispatcher) -> LocalDispatcherGuard {
     let previous = LOCAL_DISPATCHER.replace(Some(dispatcher));
     if previous.is_none() {
-        LOCAL_COUNT.fetch_add(1, Ordering::Release);
+        LOCAL_COUNT.fetch_add(1, Ordering::Relaxed);
     }
 
     LocalDispatcherGuard { previous }
@@ -74,7 +74,7 @@ where
     F: FnOnce(&Dispatcher) -> R,
     R: Default,
 {
-    if LOCAL_COUNT.load(Ordering::Acquire) > 0 {
+    if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
         if let Some(dispatcher) = LOCAL_DISPATCHER.take() {
             let result = f(&dispatcher);
             LOCAL_DISPATCHER.set(Some(dispatcher));
