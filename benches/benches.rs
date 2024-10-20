@@ -132,13 +132,20 @@ pub mod tags {
             }
 
             let mut string_buf = StringBuf::<128>::default();
-            let mut collected_tags = Vec::with_capacity(tags.len());
-            for tag in tags {
-                string_buf.clear();
+            let mut collected_tags = Box::<[Str24]>::new_uninit_slice(tags.len());
+
+            for (i, tag) in tags.iter().enumerate() {
                 write!(&mut string_buf, "{tag}").unwrap();
-                collected_tags.push(Str24::new(string_buf.as_str()));
+                unsafe {
+                    collected_tags
+                        .get_unchecked_mut(i)
+                        .as_mut_ptr()
+                        .write(Str24::new(string_buf.as_str()));
+                }
+
+                string_buf.clear();
             }
-            Some(collected_tags.into_boxed_slice())
+            Some(unsafe { collected_tags.assume_init() })
         })
     }
 

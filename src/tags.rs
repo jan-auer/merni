@@ -12,15 +12,20 @@ pub fn record_tags(tags: InputTags) -> TagValues {
     }
 
     let mut string_buf = StringBuf::<128>::default();
-    let mut collected_tags = Vec::with_capacity(tags.len());
+    let mut collected_tags = Box::<[Str24]>::new_uninit_slice(tags.len());
 
-    for tag in tags {
+    for (i, tag) in tags.iter().enumerate() {
         write!(&mut string_buf, "{tag}").unwrap();
-        collected_tags.push(string_buf.as_str().into());
+        unsafe {
+            collected_tags[i]
+                .as_mut_ptr()
+                .write(Str24::new(string_buf.as_str()));
+        }
+
         string_buf.clear();
     }
 
-    Some(collected_tags.into_boxed_slice())
+    Some(unsafe { collected_tags.assume_init() })
 }
 
 #[derive(Default)]
