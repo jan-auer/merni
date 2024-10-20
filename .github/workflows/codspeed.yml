@@ -1,0 +1,28 @@
+name: CodSpeed
+
+on:
+  push:
+    branches:
+      - master
+      - wip
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: rustup toolchain install stable --profile minimal --no-self-update
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo install cargo-codspeed --locked
+
+      - run: cargo codspeed build --features aggregator criterion
+
+      - uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}
