@@ -49,3 +49,9 @@ impl TestDispatcher {
             .unwrap()
     }
 }
+
+impl Default for TestDispatcher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
