@@ -9,9 +9,8 @@ use crossbeam_utils::CachePadded;
 use rustc_hash::FxHashMap as HashMap;
 use thread_local::ThreadLocal;
 
-use crate::sink::Sink;
 use crate::tags::TagValues;
-use crate::{Metric, MetricKey, MetricMeta, MetricType};
+use crate::{Metric, MetricKey, MetricMeta, MetricType, Sink};
 
 /// A Sink for aggregated metrics.
 pub trait AggregationSink: Send + 'static {

@@ -26,7 +26,7 @@ impl MetricMeta {
         }
     }
 
-    /// Adds the expected metric tags, turning this into a [`TaggedMetric`].
+    /// Adds the expected metric tags, turning this into a [`TaggedMetricMeta`].
     pub const fn with_tags<const N: usize>(
         mut self,
         tag_keys: &'static [&'static str; N],

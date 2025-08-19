@@ -3,10 +3,10 @@ use std::fmt::{Display, Write};
 use smallvec::SmallVec;
 use smol_buf::Str24;
 
-pub type InputTags<'a> = &'a [&'a dyn Display];
-pub type TagValues = Option<Box<[Str24]>>;
+pub(crate) type InputTags<'a> = &'a [&'a dyn Display];
+pub(crate) type TagValues = Option<Box<[Str24]>>;
 
-pub fn record_tags(tags: InputTags) -> TagValues {
+pub(crate) fn record_tags(tags: InputTags) -> TagValues {
     if tags.is_empty() {
         return None;
     }
@@ -24,7 +24,7 @@ pub fn record_tags(tags: InputTags) -> TagValues {
 }
 
 #[derive(Default)]
-pub struct StringBuf<const N: usize> {
+pub(crate) struct StringBuf<const N: usize> {
     buf: SmallVec<u8, N>,
 }
 

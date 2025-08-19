@@ -57,7 +57,7 @@ impl MetricValue {
 /// A metric value is represented as an [`f64`], and conversion has access to the
 /// [`MetricMeta`] and in particular its [`MetricUnit`] to do an appropriate conversion.
 pub trait IntoMetricValue {
-    /// Converts [`self`] into a metric value, guided by the given [`MetricMeta`].
+    /// Converts the value into a metric value, guided by the given [`MetricMeta`].
     fn into_metric_value(self, meta: &MetricMeta) -> MetricValue;
 }
 

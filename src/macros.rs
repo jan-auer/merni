@@ -1,7 +1,8 @@
 /// Create a [`MetricMeta`](crate::MetricMeta).
 ///
 /// Instead of creating and emitting metrics manually, it is recommended to emit
-/// metrics using the [`counter!`], [`gauge!`] or [`distribution!`] macros.
+/// metrics using the [`counter!`](crate::counter!), [`gauge!`](crate::gauge!),
+/// or [`distribution!`](crate::distribution!) macros.
 #[macro_export]
 macro_rules! declare_metric {
     ($ty:ident => $key:literal $(@ $unit:ident)? : $($tag_key:literal),*) => {{

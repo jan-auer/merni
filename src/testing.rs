@@ -1,11 +1,10 @@
 use std::sync::{Arc, Mutex};
 
-use crate::sink::Sink;
-use crate::{set_local_dispatcher, Dispatcher, LocalDispatcherGuard, Metric};
+use crate::{set_local_dispatcher, Dispatcher, LocalDispatcherGuard, Metric, Sink};
 
 type TestMetrics = Arc<Mutex<Vec<Metric>>>;
 
-pub struct TestSink {
+struct TestSink {
     metrics: TestMetrics,
 }
 
@@ -20,9 +19,6 @@ impl Sink for TestSink {
 /// The test dispatcher will record all the emitted metrics.
 /// Calling [`finish()`](TestDispatcher::finish) unregisters the dispatcher,
 /// and returns all previously captured [`Metric`]s.
-///
-/// It is possible to manipulate the timestamps of emitted [`Metric`]s by calling
-/// [`advance_time`](TestDispatcher::advance_time)
 pub struct TestDispatcher {
     dispatcher: LocalDispatcherGuard,
     metrics: TestMetrics,
