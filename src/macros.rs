@@ -5,23 +5,21 @@
 #[macro_export]
 macro_rules! declare_metric {
     ($ty:ident => $key:literal $(@ $unit:ident)? : $($tag_key:literal),*) => {{
-        static LOCATION: $crate::Location = $crate::Location::new(file!(), line!(), module_path!());
         const N: usize = $crate::macros::__count_helper([$($crate::__replace_expr!($tag_key ())),*]);
         static METRIC: $crate::TaggedMetricMeta<N> = $crate::MetricMeta::new(
             $crate::MetricType::$ty,
             $crate::__metric_unit!($($unit)?),
             $key
-        ).with_location(&LOCATION)
+        )
         .with_tags(&[$($tag_key,)?]);
         &METRIC
     }};
     ($ty:ident => $key:literal $(@ $unit:ident)?) => {{
-        static LOCATION: $crate::Location = $crate::Location::new(file!(), line!(), module_path!());
         static METRIC: $crate::MetricMeta = $crate::MetricMeta::new(
             $crate::MetricType::$ty,
             $crate::__metric_unit!($($unit)?),
             $key
-        ).with_location(&LOCATION);
+        );
         &METRIC
     }};
 }

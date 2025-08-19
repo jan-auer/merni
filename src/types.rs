@@ -20,10 +20,6 @@ pub enum MetricType {
     /// This is similar to [`MetricType::Distribution`], except it defaults to
     /// recording millisecond durations if no explicit [`MetricUnit`] was defined.
     Timer,
-    // TODO?:
-    // Histogram,
-    // Meter,
-    // Set,
 }
 
 /// The Unit of a Metric.
@@ -32,6 +28,8 @@ pub enum MetricType {
 pub enum MetricUnit {
     /// An unknown fallback unit.
     Unknown,
+    /// The metric counts seconds.
+    Seconds,
 }
 
 /// The value of a metric.
@@ -93,13 +91,8 @@ impl IntoMetricValue for Duration {
     fn into_metric_value(self, meta: &MetricMeta) -> MetricValue {
         let secs = self.as_secs_f64();
         MetricValue::new(match meta.unit() {
-            MetricUnit::Unknown => {
-                if meta.ty() == MetricType::Timer {
-                    secs * 1_000.
-                } else {
-                    secs
-                }
-            }
+            MetricUnit::Unknown if meta.ty() == MetricType::Timer => secs * 1_000.,
+            _ => secs,
         })
     }
 }

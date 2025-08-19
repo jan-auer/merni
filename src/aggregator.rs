@@ -1,34 +1,36 @@
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
 use crossbeam_utils::CachePadded;
-use quanta::Clock;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::FxHashMap as HashMap;
 use thread_local::ThreadLocal;
 
 use crate::sink::Sink;
 use crate::tags::TagValues;
-use crate::{Location, Metric, MetricKey, MetricMeta, MetricType};
+use crate::{Metric, MetricKey, MetricMeta, MetricType};
 
-use timer::Timestamp;
-
-use self::timer::Timer;
-
-mod timer;
-
-#[cfg(test)]
-mod testing;
-
-#[cfg(test)]
-mod tests;
+/// A Sink for aggregated metrics.
+pub trait AggregationSink: Send + 'static {
+    /// This fn is being called on a timer to emit aggregated metrics.
+    fn emit(&self, metrics: Aggregations);
+}
 
 /// A wrapper around [`MetricKey`] optimized for [`HashMap`] operations
 /// by using pointer equality for its [`MetricMeta`].
 /// This will thus not aggregate otherwise identical metrics.
-pub struct LocalKey(pub(crate) MetricKey<'static>);
+pub(crate) struct LocalKey(pub(crate) MetricKey<'static>);
+impl LocalKey {
+    fn into_metric(self) -> AggregatedMetric {
+        AggregatedMetric {
+            meta: *self.0.meta,
+            tag_values: self.0.tag_values,
+        }
+    }
+}
 
 impl LocalKey {
     fn key(&self) -> (*const MetricMeta, &TagValues) {
@@ -49,20 +51,19 @@ impl PartialEq for LocalKey {
 }
 impl Eq for LocalKey {}
 
+/// An aggregated Gauge.
 pub struct AggregatedGauge {
     /// The minimum value within this aggregation.
-    pub(crate) min: f64,
+    pub min: f64,
     /// The maximum value within this aggregation.
-    pub(crate) max: f64,
+    pub max: f64,
     /// The total sum of values within this aggregation.
-    pub(crate) sum: f64,
+    pub sum: f64,
     /// The total number of values added to this aggregation.
-    pub(crate) count: u64,
+    pub count: u64,
 
     /// The latest value added to this aggregation.
-    pub(crate) last: f64,
-    /// The timestamp of the latest value in this aggregation.
-    last_timestamp: Timestamp,
+    pub last: f64,
 }
 
 impl Default for AggregatedGauge {
@@ -73,15 +74,15 @@ impl Default for AggregatedGauge {
             sum: 0.0,
             count: 0,
             last: 0.0,
-            last_timestamp: Timestamp::ZERO,
         }
     }
 }
 
+/// A precisely aggregated distribution, keeping a list of all the observed values.
 #[derive(Default)]
 pub struct PreciseAggregatedDistribution {
     /// All the aggregated values.
-    values: Vec<f64>,
+    pub values: Vec<f64>,
 }
 
 /// The thread-local "pre"-aggregations.
@@ -101,12 +102,9 @@ pub(crate) struct PreAggregations {
 type ThreadLocalAggregations = Arc<ThreadLocal<CachePadded<Mutex<PreAggregations>>>>;
 
 /// An aggregator that uses fast thread-local "pre"-aggregation.
-
 pub struct ThreadLocalAggregator {
     /// The thread-local "pre"-aggregations.
     pub(crate) aggregations: ThreadLocalAggregations,
-
-    timer: Timer,
 
     pub(crate) thread: Option<(SyncSender<()>, JoinHandle<()>)>,
 }
@@ -123,7 +121,10 @@ impl Drop for ThreadLocalAggregator {
 
 impl ThreadLocalAggregator {
     /// Create a new thread-local aggregator.
-    pub fn new() -> Self {
+    ///
+    /// This will flush aggregated metrics to the given [`AggregationSink`] on a background thread,
+    /// according to the `flush_interval`.
+    pub fn new(flush_interval: Duration, sink: impl AggregationSink) -> Self {
         let aggregations = Default::default();
 
         let (send_signal, recv_signal) = std::sync::mpsc::sync_channel(0);
@@ -132,31 +133,31 @@ impl ThreadLocalAggregator {
             .name("merni-aggregator".into())
             .spawn({
                 let aggregations = Arc::clone(&aggregations);
-                move || Self::thread(aggregations, recv_signal)
+                move || Self::thread(aggregations, flush_interval, sink, recv_signal)
             })
             .unwrap();
 
         Self {
             aggregations,
-            timer: Timer::new(),
             thread: Some((send_signal, thread)),
         }
     }
 
-    fn thread(thread_locals: ThreadLocalAggregations, recv_signal: Receiver<()>) {
-        const TICK_TIMER: Duration = Duration::from_millis(125);
-        let clock = Clock::new();
-
-        let mut all_aggregations = Aggregations::default();
-
+    fn thread(
+        thread_locals: ThreadLocalAggregations,
+        flush_interval: Duration,
+        sink: impl AggregationSink,
+        recv_signal: Receiver<()>,
+    ) {
         loop {
-            let should_shut_down = recv_signal.recv_timeout(TICK_TIMER);
-            quanta::set_recent(clock.now());
+            let should_shut_down = recv_signal.recv_timeout(flush_interval);
 
+            let mut all_aggregations = Aggregations::default();
             for thread_local in thread_locals.iter() {
                 let mut thread_local = thread_local.lock().unwrap();
                 all_aggregations.merge_aggregations(&mut thread_local);
             }
+            sink.emit(all_aggregations);
 
             if matches!(
                 should_shut_down,
@@ -181,9 +182,6 @@ impl ThreadLocalAggregator {
             MetricType::Gauge => {
                 let gauge = aggregations.gauges.entry(key).or_default();
                 gauge.last = value;
-                // FIXME: this is surprisingly expensive according to profiling
-                // gauge.last_timestamp = self.timer.timestamp();
-                gauge.last_timestamp = Timestamp::ZERO;
 
                 gauge.min = gauge.min.min(value);
                 gauge.max = gauge.max.max(value);
@@ -202,84 +200,71 @@ impl ThreadLocalAggregator {
     }
 }
 
-impl Default for ThreadLocalAggregator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Sink for ThreadLocalAggregator {
     fn emit(&self, metric: Metric) {
         self.add_metric(metric)
     }
 }
 
+/// An aggregated metric key, along with its tag values.
 #[derive(Hash, PartialEq, Eq)]
-pub(crate) struct AggregationKey((MetricMeta, TagValues));
+pub struct AggregatedMetric {
+    meta: MetricMeta,
+    tag_values: TagValues,
+}
+
+impl Deref for AggregatedMetric {
+    type Target = MetricMeta;
+
+    fn deref(&self) -> &Self::Target {
+        &self.meta
+    }
+}
+
+impl AggregatedMetric {
+    /// Iterates over the tag keys and values of this metric.
+    pub fn tags(&self) -> impl Iterator<Item = (&str, &str)> {
+        let values = self.tag_values.as_deref().unwrap_or_default();
+        self.meta
+            .tag_keys
+            .iter()
+            .copied()
+            .zip(values.iter().map(|s| s.as_ref()))
+    }
+}
 
 /// The final aggregated metrics.
 #[derive(Default)]
-pub(crate) struct Aggregations {
-    /// All code locations of the emitted metrics.
-    code_locations: HashMap<MetricMeta, HashSet<&'static Location<'static>>>,
+pub struct Aggregations {
     /// All aggregated counter metrics.
-    counters: HashMap<AggregationKey, f64>,
+    pub counters: HashMap<AggregatedMetric, f64>,
     /// All aggregated gauge metrics.
-    pub(crate) gauges: HashMap<AggregationKey, AggregatedGauge>,
+    pub gauges: HashMap<AggregatedMetric, AggregatedGauge>,
     /// All aggregated distribution-like metrics.
-    distributions: HashMap<AggregationKey, PreciseAggregatedDistribution>,
+    pub distributions: HashMap<AggregatedMetric, PreciseAggregatedDistribution>,
 }
 
 impl Aggregations {
-    /// Removes the [`Location`] from this metric,
-    /// in order to aggregate metrics ignoring the source code location.
-    ///
-    /// The removed [`Location`] is rather saved in a per-metric Set,
-    /// "per metric" in this case meaning the metric without any unique tags.
-    fn split_location(&mut self, LocalKey(key): LocalKey) -> AggregationKey {
-        let Some(location) = key.location else {
-            return AggregationKey((*key.meta, key.tag_values));
-        };
-
-        // remove the location from the aggregation key
-        let mut meta = *key.meta;
-        meta.location = None;
-
-        // and then remove all the tag keys from the locations key
-        let mut locations_meta = meta;
-        locations_meta.tag_keys = &[];
-
-        self.code_locations
-            .entry(locations_meta)
-            .or_default()
-            .insert(location);
-
-        AggregationKey((meta, key.tag_values))
-    }
-
     /// Merges all the aggregates into `self`.
     pub(crate) fn merge_aggregations(&mut self, aggregations: &mut PreAggregations) {
         for (key, value) in aggregations.counters.drain() {
-            let key = self.split_location(key);
+            let key = key.into_metric();
             *self.counters.entry(key).or_default() += value;
         }
 
         for (key, other) in aggregations.gauges.drain() {
-            let key = self.split_location(key);
+            let key = key.into_metric();
             let gauge = self.gauges.entry(key).or_default();
 
             gauge.min = gauge.min.min(other.min);
             gauge.max = gauge.max.max(other.max);
             gauge.sum += other.sum;
             gauge.count += other.count;
-            if other.last_timestamp >= gauge.last_timestamp {
-                gauge.last_timestamp = other.last_timestamp;
-                gauge.last = other.last;
-            }
+            gauge.last = other.last;
         }
 
         for (key, other) in aggregations.distributions.drain() {
-            let key = self.split_location(key);
+            let key = key.into_metric();
             self.distributions
                 .entry(key)
                 .or_default()

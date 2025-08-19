@@ -1,7 +1,3 @@
-// use std::sync::{Arc, OnceLock};
-
-// use cadence::Counted as _;
-
 use crate::testing::TestDispatcher;
 
 use super::*;
@@ -16,7 +12,8 @@ fn test_local_dispatcher() {
     let metrics = dispatcher.finish();
     assert!(metrics.is_empty());
 
-    with_dispatcher(|_dispatcher| unreachable!());
+    let called: bool = with_dispatcher(|_dispatcher| unreachable!());
+    assert!(!called);
 }
 
 #[test]
@@ -66,10 +63,8 @@ fn test_manual_emit() {
     });
 
     with_dispatcher(|dispatcher| {
-        static LOCATION: Location<'static> = Location::new("this_file.rs", 123, "merni::tests");
         static TAGGED_METRIC: TaggedMetricMeta<2> =
             MetricMeta::new(MetricType::Gauge, MetricUnit::Unknown, "manual.gauge")
-                .with_location(&LOCATION)
                 .with_tags(&["tag1", "tag2"]);
 
         dispatcher.emit_tagged(&TAGGED_METRIC, 2, [&123, &"tag value 2"]);
@@ -80,12 +75,10 @@ fn test_manual_emit() {
 
     assert_eq!(metrics[0].ty(), MetricType::Counter);
     assert_eq!(metrics[0].key(), "manual.counter");
-    assert_eq!(metrics[0].file(), None);
     assert_eq!(metrics[0].value().get(), 1.);
 
     assert_eq!(metrics[1].ty(), MetricType::Gauge);
     assert_eq!(metrics[1].key(), "manual.gauge");
-    assert_eq!(metrics[1].file(), Some("this_file.rs"));
     assert_eq!(metrics[1].value().get(), 2.);
     assert_eq!(
         metrics[1].tags().collect::<Vec<_>>(),
@@ -93,62 +86,39 @@ fn test_manual_emit() {
     );
 }
 
-// #[test]
-// fn compare_with_cadence() {
-//     type OnceString = Arc<OnceLock<String>>;
+#[cfg(feature = "aggregator")]
+#[test]
+fn test_aggregation() {
+    use std::sync::Arc;
 
-//     struct NoopCadenceSink(OnceString);
-//     impl cadence::MetricSink for NoopCadenceSink {
-//         fn emit(&self, metric: &str) -> std::io::Result<usize> {
-//             self.0.get_or_init(|| metric.into());
-//             Ok(0)
-//         }
-//     }
+    let aggregations = Default::default();
+    let sink = ThreadLocalAggregator {
+        aggregations: Arc::clone(&aggregations),
+        thread: None,
+    };
+    let dispatcher = Dispatcher::new(sink);
 
-//     let cadence_output = OnceString::default();
-//     let cadence_client =
-//         cadence::StatsdClient::builder("some.prefix", NoopCadenceSink(cadence_output.clone()))
-//             .with_tag_value("tag_only_a")
-//             .with_tag_value("tag_only_a")
-//             .with_tag_value("tag_only_b")
-//             .with_tag_value("tag_only_c")
-//             .with_tag("tag_a", "value_a")
-//             .with_tag("tag_a", "value_a")
-//             .with_tag("tag_b", "value_b")
-//             .with_tag("tag_c", "value_c")
-//             .build();
+    let guard = set_local_dispatcher(dispatcher);
 
-//     cadence_client
-//         .count_with_tags("some.metric", 1)
-//         .with_tag("tag_a", "override_a")
-//         .with_tag("tag_d", "tag_d")
-//         .with_tag_value("tag_only_b")
-//         .with_tag_value("tag_only_d")
-//         .send();
+    gauge!("some.gauge": 1, "tag_key" => "tag_value");
+    gauge!("some.gauge": 2, "tag_key" => "tag_value");
+    gauge!("some.gauge": 3, "tag_key" => "tag_value");
+    gauge!("some.gauge": 4, "tag_key" => "tag_value");
 
-//     struct NoopMerniSink(OnceString);
-//     impl MetricSink for NoopMerniSink {
-//         fn emit(&self, metric: &str) {
-//             self.0.get_or_init(|| metric.into());
-//         }
-//     }
+    drop(guard);
 
-//     let merni_output = OnceString::default();
-//     let merni_client = StatsdRecorder::new("some.prefix", NoopMerniSink(merni_output.clone()))
-//         .with_tag_value("tag_only_a")
-//         .with_tag_value("tag_only_a")
-//         .with_tag_value("tag_only_b")
-//         .with_tag_value("tag_only_c")
-//         .with_tag("tag_a", "value_a")
-//         .with_tag("tag_a", "value_a")
-//         .with_tag("tag_b", "value_b")
-//         .with_tag("tag_c", "value_c");
+    let mut total_aggregation = Aggregations::default();
+    for aggregation in aggregations.iter() {
+        let mut aggregation = aggregation.lock().unwrap();
+        assert_eq!(aggregation.gauges.len(), 4); // implementation detail of `LocalKey`
+        total_aggregation.merge_aggregations(&mut aggregation);
+    }
 
-//     merni_client.record_metric(metric!(
-//         Counter: "some.metric", 1,
-//         "tag_a" => "override_a", "tag_d" => "tag_d";
-//         "tag_only_b", "tag_only_d"
-//     ));
+    assert_eq!(total_aggregation.gauges.len(), 1);
+    let gauge = total_aggregation.gauges.into_values().next().unwrap();
 
-//     assert_eq!(cadence_output, merni_output);
-// }
+    assert_eq!(gauge.count, 4);
+    assert_eq!(gauge.min, 1.);
+    assert_eq!(gauge.max, 4.);
+    assert_eq!(gauge.sum, 10.);
+}

@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use crate::Metric;
 
+/// A Sink for metrics emmission.
 pub trait Sink {
+    /// This fn is being called when a metric is emitted.
     fn emit(&self, metric: Metric);
 }
 
