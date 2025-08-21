@@ -81,6 +81,9 @@ macro_rules! __metric_unit {
     (s) => {
         $crate::MetricUnit::Seconds
     };
+    (b) => {
+        $crate::MetricUnit::Bytes
+    };
 }
 
 // These are taken from <https://veykril.github.io/tlborm/decl-macros/building-blocks/counting.html#array-length>

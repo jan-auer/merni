@@ -25,11 +25,14 @@ pub enum MetricType {
 /// The Unit of a Metric.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub enum MetricUnit {
     /// An unknown fallback unit.
     Unknown,
     /// The metric counts seconds.
     Seconds,
+    /// The metric counts bytes.
+    Bytes,
 }
 
 /// The value of a metric.

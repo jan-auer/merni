@@ -24,6 +24,11 @@ mod aggregator;
 #[cfg(feature = "aggregator")]
 pub use aggregator::*;
 
+#[cfg(feature = "datadog")]
+mod datadog;
+#[cfg(feature = "datadog")]
+pub use datadog::*;
+
 #[cfg(any(test, feature = "testing"))]
 /// This contains some utilities used for testing
 pub mod testing;

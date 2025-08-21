@@ -74,7 +74,7 @@ impl<'meta> Deref for MetricKey<'meta> {
 
 impl<'meta> MetricKey<'meta> {
     /// Iterates over the tag keys and values of this metric.
-    pub fn tags(&self) -> impl Iterator<Item = (&str, &str)> {
+    pub fn tags(&self) -> impl ExactSizeIterator<Item = (&str, &str)> {
         let values = self.tag_values.as_deref().unwrap_or_default();
         self.meta
             .tag_keys
