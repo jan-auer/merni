@@ -26,6 +26,7 @@ pub enum MetricType {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum MetricUnit {
     /// An unknown fallback unit.
     Unknown,

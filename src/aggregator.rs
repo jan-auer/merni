@@ -15,7 +15,7 @@ use crate::{Metric, MetricKey, MetricMeta, MetricType, Sink};
 /// A Sink for aggregated metrics.
 pub trait AggregationSink: Send + 'static {
     /// This fn is being called on a timer to emit aggregated metrics.
-    fn emit(&self, metrics: Aggregations);
+    fn emit(&mut self, metrics: Aggregations);
 }
 
 /// A wrapper around [`MetricKey`] optimized for [`HashMap`] operations
@@ -145,7 +145,7 @@ impl ThreadLocalAggregator {
     fn thread(
         thread_locals: ThreadLocalAggregations,
         flush_interval: Duration,
-        sink: impl AggregationSink,
+        mut sink: impl AggregationSink,
         recv_signal: Receiver<()>,
     ) {
         loop {
@@ -208,8 +208,8 @@ impl Sink for ThreadLocalAggregator {
 /// An aggregated metric key, along with its tag values.
 #[derive(Hash, PartialEq, Eq)]
 pub struct AggregatedMetric {
-    meta: MetricMeta,
-    tag_values: TagValues,
+    pub(crate) meta: MetricMeta,
+    pub(crate) tag_values: TagValues,
 }
 
 impl Deref for AggregatedMetric {
