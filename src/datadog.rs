@@ -161,8 +161,8 @@ impl DatadogSink {
         value: f64,
     ) -> io::Result<()> {
         self.write_begin();
-        self.write_meta(&meta)?;
-        self.write_type_and_unit(&meta)?;
+        self.write_meta(meta)?;
+        self.write_type_and_unit(meta)?;
 
         self.metric_buf.write_fmt(format_args!(
             r#""points":[{{"timestamp":{timestamp},"value":{value}}}]}}"#
@@ -178,7 +178,7 @@ impl DatadogSink {
         values: &[f64],
     ) -> io::Result<()> {
         self.write_begin();
-        self.write_meta(&meta)?;
+        self.write_meta(meta)?;
 
         self.metric_buf
             .write_fmt(format_args!(r#""points":[[{timestamp},"#))?;

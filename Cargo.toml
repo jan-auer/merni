@@ -28,7 +28,7 @@ testing = []
 crossbeam-utils = { version = "0.8.21", optional = true }
 reqwest = { version = "0.12.23", optional = true, features = ["zstd"] }
 rustc-hash = { version = "2.1.1", optional = true }
-serde = { version = "1.0.219", optional = true }
+serde = { version = "1.0.219", optional = true, features = ["derive"] }
 serde_json = { version = "1.0.143", optional = true }
 smallvec = "2.0.0-alpha.11"
 smol_buf = "0.1.2"
@@ -38,6 +38,7 @@ zstd = { version = "0.13.3", optional = true }
 
 [dev-dependencies]
 divan = { version = "3.0.5", package = "codspeed-divan-compat" }
+tango-bench = "0.6.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -46,8 +47,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 [profile.release]
 debug = 1
 
-# DIVAN_MIN_TIME=0.25 DIVAN_THREADS=1 cargo bench
+# DIVAN_MIN_TIME=0.25 DIVAN_THREADS=1 cargo bench --bench=divan
 [[bench]]
 name = "divan"
+harness = false
+required-features = ["aggregator"]
+
+# cargo export target/benchmarks -- bench --bench=tango
+# cargo bench --bench=tango -- compare target/benchmarks/tango --time 1
+[[bench]]
+name = "tango"
 harness = false
 required-features = ["aggregator"]
