@@ -11,7 +11,7 @@ description = "A low overhead metrics implementation."
 autobenches = false
 
 [features]
-default = ["aggregator"]
+default = ["datadog"]
 aggregator = ["dep:crossbeam-utils", "dep:rustc-hash", "dep:thread_local"]
 datadog = [
     "aggregator",
@@ -38,6 +38,7 @@ zstd = { version = "0.13.3", optional = true }
 
 [dev-dependencies]
 divan = { version = "3.0.5", package = "codspeed-divan-compat" }
+tokio = { version = "1.47.1", features = ["full"] }
 tango-bench = "0.6.0"
 
 [package.metadata.docs.rs]
@@ -46,6 +47,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [profile.release]
 debug = 1
+
+[[example]]
+name = "datadog"
+required-features = ["datadog"]
 
 # DIVAN_MIN_TIME=0.25 DIVAN_THREADS=1 cargo bench --bench=divan
 [[bench]]

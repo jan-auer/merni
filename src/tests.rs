@@ -92,7 +92,7 @@ fn test_aggregation() {
     use std::sync::Arc;
 
     let aggregations = Default::default();
-    let sink = ThreadLocalAggregator {
+    let sink = ThreadLocalAggregator::<()> {
         aggregations: Arc::clone(&aggregations),
         thread: None,
     };

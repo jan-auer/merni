@@ -5,9 +5,10 @@ use merni::{AggregationSink, ThreadLocalAggregator};
 
 pub struct NoopSink;
 impl AggregationSink for NoopSink {
+    type Output = ();
     fn emit(&mut self, _metrics: merni::Aggregations) {}
 }
-pub fn noop_aggregator() -> ThreadLocalAggregator {
+pub fn noop_aggregator() -> ThreadLocalAggregator<()> {
     ThreadLocalAggregator::new(Duration::from_millis(20), NoopSink)
 }
 

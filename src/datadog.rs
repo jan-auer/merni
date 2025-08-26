@@ -1,12 +1,64 @@
+use std::borrow::Cow;
 use std::io::{self, Write};
-use std::time::SystemTime;
+use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use reqwest::header;
 use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 use zstd::stream::raw::{Encoder, Operation};
 use zstd::zstd_safe::{InBuffer, OutBuffer};
 
-use crate::{AggregatedMetric, AggregationSink, Aggregations, MetricMeta, MetricType, MetricUnit};
+use crate::{
+    set_global_dispatcher, AggregatedMetric, AggregationSink, Aggregations, Dispatcher, MetricMeta,
+    MetricType, MetricUnit, ThreadLocalAggregator,
+};
+
+type DatadogAggregator = Arc<ThreadLocalAggregator<io::Result<Vec<JoinHandle<()>>>>>;
+
+/// This is a wrapper struct that allows flushing aggregated metrics to Datadog.
+pub struct DatadogFlusher {
+    aggregator: DatadogAggregator,
+}
+impl DatadogFlusher {
+    /// Flushes aggregated metrics to datadog
+    pub async fn flush(&self, timeout: Option<Duration>) -> io::Result<()> {
+        let tasks = self.aggregator.flush(timeout).map_err(io::Error::other)??;
+        for task in tasks {
+            task.await.map_err(io::Error::other)?;
+        }
+
+        Ok(())
+    }
+}
+
+/// This is a shortcut to configure the Datadog sink with sensible defaults.
+///
+/// It runs on the "current" tokio runtime, flushes metrics every 10 seconds,
+/// and defaults to the `DD_API_KEY` env variable if no explicit Datadog API key has been given.
+/// This will also install the dispatcher globally.
+pub fn init_datadog<'a>(api_key: impl Into<Option<&'a str>>) -> io::Result<DatadogFlusher> {
+    let api_key = if let Some(api_key) = api_key.into() {
+        Cow::Borrowed(api_key)
+    } else {
+        let api_key = std::env::var("DD_API_KEY").map_err(io::Error::other)?;
+        Cow::Owned(api_key)
+    };
+
+    init_with_key(&api_key)
+}
+
+fn init_with_key(api_key: &str) -> io::Result<DatadogFlusher> {
+    let runtime = Handle::current();
+    let flush_interval = Duration::from_secs(10);
+
+    let datadog = DatadogSink::new(runtime, api_key, None)?;
+    let aggregator = Arc::new(ThreadLocalAggregator::new(flush_interval, datadog));
+    let dispatcher = Dispatcher::new(Arc::clone(&aggregator));
+    set_global_dispatcher(dispatcher)
+        .map_err(|_| io::Error::other("unable to set global dispatcher"))?;
+    Ok(DatadogFlusher { aggregator })
+}
 
 /// An aggregator sink which pushes metrics to Datadog, using the Datadog API.
 pub struct DatadogSink {
@@ -14,6 +66,8 @@ pub struct DatadogSink {
     client: reqwest::Client,
     api_key: String,
     site: String,
+
+    join_handles: Vec<JoinHandle<()>>,
 
     metric_buf: Vec<u8>,
     tag_buf: String,
@@ -25,8 +79,10 @@ pub struct DatadogSink {
 }
 
 impl AggregationSink for DatadogSink {
-    fn emit(&mut self, metrics: Aggregations) {
-        self.emit_metrics(metrics).unwrap();
+    type Output = io::Result<Vec<JoinHandle<()>>>;
+
+    fn emit(&mut self, metrics: Aggregations) -> Self::Output {
+        self.emit_metrics(metrics)
     }
 }
 
@@ -52,6 +108,8 @@ impl DatadogSink {
             api_key: api_key.into(),
             site: dd_server.unwrap_or(DD_SITE).trim_end_matches('/').into(),
 
+            join_handles: Vec::new(),
+
             metric_buf: Vec::with_capacity(MAX_COMPRESSED),
             tag_buf: String::new(),
 
@@ -62,7 +120,7 @@ impl DatadogSink {
         })
     }
 
-    fn emit_metrics(&mut self, metrics: Aggregations) -> io::Result<()> {
+    fn emit_metrics(&mut self, metrics: Aggregations) -> io::Result<Vec<JoinHandle<()>>> {
         let timestamp = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map_err(io::Error::other)?
@@ -81,7 +139,7 @@ impl DatadogSink {
         }
         self.flush(DISTRIBUTION_ENDPOINT)?;
 
-        Ok(())
+        Ok(std::mem::take(&mut self.join_handles))
     }
 
     fn flush(&mut self, endpoint: &str) -> io::Result<()> {
@@ -143,10 +201,10 @@ impl DatadogSink {
             .body(self.compression_buffer.clone())
             .send();
 
-        self.runtime.spawn(async move {
+        self.join_handles.push(self.runtime.spawn(async move {
             let response = request.await;
             response.unwrap().error_for_status().unwrap();
-        });
+        }));
 
         self.bytes_written = 0;
         self.compression_buffer.clear();

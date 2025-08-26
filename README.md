@@ -5,26 +5,48 @@
 
 An opinionated metrics crate with low overhead, and thread-local aggregation.
 
-## Usage
+## Quick start
 
-To start recording metrics, one has to create a [`Dispatcher`], giving it an
-appropriate [`Sink`] implementation.
-The dispatcher can then be registered globally using [`set_global_dispatcher`].
-
-The most efficient usage can be achieved by using the [`ThreadLocalAggregator`],
-which itself acts as a [`Sink`], but has to be used together with an [`AggregationSink`].
-
-This will aggregate metrics thread-locally, and flush them periodically to the
-configured [`AggregationSink`].
-
-Once configured, metrics can be recorded with the [`counter!`], [`gauge!`], or [`distribution!`] macro.
+With the `"datadog"` feature enabled, you can quickly initialize a global
+metrics dispatcher, which will periodically flush metrics to Datadog.
 
 ```rust
-use merni::{Sink, Dispatcher, Metric, counter};
+use std::time::Duration;
 
+#[tokio::main]
+async fn main() {
+    // Or `None`, which defaults to using the `DD_API_KEY` env.
+    let flusher = merni::init_datadog("datadog API key").unwrap();
+
+    // Later on, anywhere in your code:
+    merni::counter!("some.counter": 1);
+
+    // It is also possible to add tags, as well as units.
+    // In this example, the value is converted to seconds, which is also used as unit.
+    merni::distribution!("with.tags"@s: Duration::from_millis(10), "tag" => "value");
+
+    // `None` means no timeout waiting for the flush.
+    flusher.flush(None).await.unwrap_err(); // expecting an error as we have an invalid API key :-)
+}
+```
+
+## Details
+
+Mérni consists of some layers of abstraction.
+At the core, there is the [`Dispatcher`], which dispatches metrics to a generic [`Sink`].
+The dispatcher can then be registered globally using [`set_global_dispatcher`].
+
+One of the sinks is the [`ThreadLocalAggregator`], enabled using the `"aggregator"` feature.
+This specialized sink does thread-local pre-aggregation, before periodically
+flushing the fully aggregated metrics to yet another generic [`AggregationSink`].
+
+It is possible to drop down to the most basic APIs, and implement the [`Sink`]
+trait directly.
+
+```rust
 struct PrintlnSink;
-impl Sink for PrintlnSink {
-    fn emit(&self, metric: Metric) {
+impl merni::Sink for PrintlnSink {
+    fn emit(&self, metric: merni::Metric) {
         let mut tags = metric.tags().peekable();
         let tags = if tags.peek().is_some() {
             let mut tags_str = String::new();
@@ -43,13 +65,9 @@ impl Sink for PrintlnSink {
     }
 }
 
-// Once when initializing:
-let dispatcher = Dispatcher::new(PrintlnSink);
+let dispatcher = merni::Dispatcher::new(PrintlnSink);
 merni::set_global_dispatcher(dispatcher).expect("global recorder already registered");
 
-// Later on, anywhere in your code:
-counter!("some.counter": 1);
-
-// It is also possible to add tags:
-counter!("with.tags": 1, "tag" => "value");
+merni::counter!("some.counter": 1);
+merni::counter!("with.tags": 1, "tag" => "value");
 ```

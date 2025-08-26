@@ -1,6 +1,6 @@
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender};
+use std::sync::mpsc::{sync_channel, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -14,8 +14,11 @@ use crate::{Metric, MetricKey, MetricMeta, MetricType, Sink};
 
 /// A Sink for aggregated metrics.
 pub trait AggregationSink: Send + 'static {
+    /// The output of emitting/flushing aggregated metrics.
+    type Output;
+
     /// This fn is being called on a timer to emit aggregated metrics.
-    fn emit(&mut self, metrics: Aggregations);
+    fn emit(&mut self, metrics: Aggregations) -> Self::Output;
 }
 
 /// A wrapper around [`MetricKey`] optimized for [`HashMap`] operations
@@ -100,33 +103,37 @@ pub(crate) struct PreAggregations {
 /// The thread-local "pre"-aggregations.
 type ThreadLocalAggregations = Arc<ThreadLocal<CachePadded<Mutex<PreAggregations>>>>;
 
+pub(crate) enum Task<Output> {
+    Flush(SyncSender<Output>),
+    Shutdown,
+}
+
 /// An aggregator that uses fast thread-local "pre"-aggregation.
-pub struct ThreadLocalAggregator {
+pub struct ThreadLocalAggregator<Output> {
     /// The thread-local "pre"-aggregations.
     pub(crate) aggregations: ThreadLocalAggregations,
 
-    pub(crate) thread: Option<(SyncSender<()>, JoinHandle<()>)>,
+    pub(crate) thread: Option<(SyncSender<Task<Output>>, JoinHandle<()>)>,
 }
 
-impl Drop for ThreadLocalAggregator {
+impl<Output> Drop for ThreadLocalAggregator<Output> {
     fn drop(&mut self) {
         if let Some((sender, thread)) = self.thread.take() {
-            let _ = sender.try_send(());
+            let _ = sender.try_send(Task::Shutdown);
             drop(sender);
             thread.join().unwrap();
         }
     }
 }
 
-impl ThreadLocalAggregator {
+impl<Output: Send + 'static> ThreadLocalAggregator<Output> {
     /// Create a new thread-local aggregator.
     ///
     /// This will flush aggregated metrics to the given [`AggregationSink`] on a background thread,
     /// according to the `flush_interval`.
-    pub fn new(flush_interval: Duration, sink: impl AggregationSink) -> Self {
+    pub fn new(flush_interval: Duration, sink: impl AggregationSink<Output = Output>) -> Self {
         let aggregations = Default::default();
-
-        let (send_signal, recv_signal) = std::sync::mpsc::sync_channel(0);
+        let (send_signal, recv_signal) = sync_channel(0);
 
         let thread = std::thread::Builder::new()
             .name("merni-aggregator".into())
@@ -142,33 +149,50 @@ impl ThreadLocalAggregator {
         }
     }
 
+    /// Flushes all aggregated metrics to the configured sink, returning its result.
+    pub fn flush(&self, timeout: Option<Duration>) -> Result<Output, RecvTimeoutError> {
+        let Some((thread_sender, _thread)) = &self.thread else {
+            return Err(RecvTimeoutError::Disconnected);
+        };
+        let (sender, receiver) = sync_channel(1);
+        thread_sender
+            .send(Task::Flush(sender))
+            .map_err(|_| RecvTimeoutError::Disconnected)?;
+        if let Some(timeout) = timeout {
+            receiver.recv_timeout(timeout)
+        } else {
+            receiver.recv().map_err(|_| RecvTimeoutError::Disconnected)
+        }
+    }
+
     fn thread(
         thread_locals: ThreadLocalAggregations,
         flush_interval: Duration,
-        mut sink: impl AggregationSink,
-        recv_signal: Receiver<()>,
+        mut sink: impl AggregationSink<Output = Output>,
+        recv_signal: Receiver<Task<Output>>,
     ) {
         loop {
-            let should_shut_down = recv_signal.recv_timeout(flush_interval);
+            let signal = recv_signal.recv_timeout(flush_interval);
 
             let mut all_aggregations = Aggregations::default();
             for thread_local in thread_locals.iter() {
                 let mut thread_local = thread_local.lock().unwrap();
                 all_aggregations.merge_aggregations(&mut thread_local);
             }
-            sink.emit(all_aggregations);
+            let output = sink.emit(all_aggregations);
 
-            if matches!(
-                should_shut_down,
-                Ok(()) | Err(RecvTimeoutError::Disconnected)
-            ) {
-                return;
+            match signal {
+                Ok(Task::Flush(sender)) => {
+                    let _ = sender.send(output);
+                }
+                Ok(Task::Shutdown) | Err(RecvTimeoutError::Disconnected) => return,
+                _ => {}
             }
         }
     }
 
     /// Adds the [`Metric`] to this thread-local aggregator.
-    pub fn add_metric(&self, metric: Metric) {
+    fn add_metric(&self, metric: Metric) {
         let mut aggregations = self.aggregations.get_or_default().lock().unwrap();
         let ty = metric.ty();
         let key = LocalKey(metric.key);
@@ -199,7 +223,7 @@ impl ThreadLocalAggregator {
     }
 }
 
-impl Sink for ThreadLocalAggregator {
+impl<Output: Send + 'static> Sink for ThreadLocalAggregator<Output> {
     fn emit(&self, metric: Metric) {
         self.add_metric(metric)
     }
