@@ -1,4 +1,4 @@
-name: Complete CI
+name: CI
 
 on:
   push:

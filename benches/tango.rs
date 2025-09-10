@@ -1,5 +1,5 @@
-use merni::{set_global_dispatcher, Dispatcher};
-use tango_bench::{benchmark_fn, tango_benchmarks, tango_main, IntoBenchmarks};
+use merni::{Dispatcher, set_global_dispatcher};
+use tango_bench::{IntoBenchmarks, benchmark_fn, tango_benchmarks, tango_main};
 
 mod benches;
 use benches::*;

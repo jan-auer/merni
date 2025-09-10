@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use divan::Bencher;
-use merni::{set_global_dispatcher, set_local_dispatcher, Dispatcher};
+use merni::{Dispatcher, set_global_dispatcher, set_local_dispatcher};
 
 mod benches;
 use benches::*;

@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::tags::{record_tags, InputTags};
+use crate::tags::{InputTags, record_tags};
 use crate::{IntoMetricValue, Metric, MetricKey, MetricMeta, MetricValue, Sink, TaggedMetricMeta};
 
 /// A Dispatcher that can be used to emit metrics.

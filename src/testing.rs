@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::{set_local_dispatcher, Dispatcher, LocalDispatcherGuard, Metric, Sink};
+use crate::{Dispatcher, LocalDispatcherGuard, Metric, Sink, set_local_dispatcher};
 
 type TestMetrics = Arc<Mutex<Vec<Metric>>>;
 

@@ -1,6 +1,6 @@
 use std::cell::Cell;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::Dispatcher;
 
@@ -74,12 +74,12 @@ where
     F: FnOnce(&Dispatcher) -> R,
     R: Default,
 {
-    if LOCAL_COUNT.load(Ordering::Relaxed) > 0 {
-        if let Some(dispatcher) = LOCAL_DISPATCHER.take() {
-            let result = f(&dispatcher);
-            LOCAL_DISPATCHER.set(Some(dispatcher));
-            return result;
-        }
+    if LOCAL_COUNT.load(Ordering::Relaxed) > 0
+        && let Some(dispatcher) = LOCAL_DISPATCHER.take()
+    {
+        let result = f(&dispatcher);
+        LOCAL_DISPATCHER.set(Some(dispatcher));
+        return result;
     }
 
     if let Some(dispatcher) = GLOBAL_DISPATCHER.get() {

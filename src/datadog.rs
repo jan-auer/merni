@@ -9,8 +9,8 @@ use zstd::stream::raw::{Encoder, Operation};
 use zstd::zstd_safe::{InBuffer, OutBuffer};
 
 use crate::{
-    set_global_dispatcher, AggregatedMetric, AggregationSink, Aggregations, Dispatcher, MetricMeta,
-    MetricType, MetricUnit, ThreadLocalAggregator,
+    AggregatedMetric, AggregationSink, Aggregations, Dispatcher, MetricMeta, MetricType,
+    MetricUnit, ThreadLocalAggregator, set_global_dispatcher,
 };
 
 type DatadogAggregator = Arc<ThreadLocalAggregator<io::Result<Vec<JoinHandle<()>>>>>;

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use merni::{counter, distribution, gauge};
 use merni::{AggregationSink, ThreadLocalAggregator};
+use merni::{counter, distribution, gauge};
 
 pub struct NoopSink;
 impl AggregationSink for NoopSink {
