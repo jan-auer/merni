@@ -10,7 +10,7 @@ An opinionated metrics crate with low overhead, and thread-local aggregation.
 With the `"datadog"` feature enabled, you can quickly initialize a global
 metrics dispatcher, which will periodically flush metrics to Datadog.
 
-```rust
+```rust,ignore
 use std::time::Duration;
 
 #[tokio::main]
