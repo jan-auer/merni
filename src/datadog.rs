@@ -189,9 +189,10 @@ impl AggregationSink for DatadogSink {
     }
 }
 
-const THRESHOLD: usize = 1024;
+const THRESHOLD: usize = 1024 * 4;
 const MAX_COMPRESSED: usize = 512000;
 const MAX_UNCOMPRESSED: usize = 5242880;
+const BYTES_PER_POINT: usize = 20;
 
 const DD_SITE: &str = "https://api.datadoghq.com";
 const DISTRIBUTION_ENDPOINT: &str = "/api/v1/distribution_points";
@@ -213,7 +214,12 @@ impl DatadogSink {
         self.flush(METRICS_ENDPOINT)?;
 
         for (meta, values) in metrics.distributions {
-            self.push_distribution(&meta, timestamp, &values.values)?;
+            let mut rest = values.values.as_slice();
+            while !rest.is_empty() {
+                let num_values = (self.next_flush_len / BYTES_PER_POINT).min(rest.len());
+                let values = rest.split_off(..num_values).unwrap();
+                self.push_distribution(&meta, timestamp, values)?;
+            }
         }
         self.flush(DISTRIBUTION_ENDPOINT)?;
 
@@ -256,16 +262,19 @@ impl DatadogSink {
     }
     fn flush_to_zstd(&mut self) -> io::Result<()> {
         let mut input = InBuffer::around(&self.metric_buf);
-        let mut output = OutBuffer::around(&mut self.compression_buffer);
+        let output_len = self.compression_buffer.len();
+        let mut output = OutBuffer::around_pos(&mut self.compression_buffer, output_len);
 
         self.cctx.run(&mut input, &mut output)?;
 
         self.bytes_written += self.metric_buf.len();
         self.metric_buf.clear();
+
         Ok(())
     }
     fn do_flush(&mut self, endpoint: &str) -> io::Result<()> {
-        let mut output = OutBuffer::around(&mut self.compression_buffer);
+        let output_len = self.compression_buffer.len();
+        let mut output = OutBuffer::around_pos(&mut self.compression_buffer, output_len);
         self.cctx.finish(&mut output, true)?;
         self.cctx.reinit()?;
 
@@ -280,8 +289,13 @@ impl DatadogSink {
             .send();
 
         self.join_handles.push(self.runtime.spawn(async move {
-            let response = request.await;
-            response.unwrap().error_for_status().unwrap();
+            // TODO: handle errors happening during error handling
+            let response = request.await.unwrap();
+            if let Err(err) = response.error_for_status_ref() {
+                let response_text = response.text().await.unwrap();
+
+                eprintln!("merni: error submitting metrics to datadog (err={err}, response={response_text})");
+            }
         }));
 
         self.bytes_written = 0;
@@ -325,7 +339,7 @@ impl DatadogSink {
     }
 
     fn write_begin(&mut self) {
-        if self.metric_buf.is_empty() {
+        if self.metric_buf.is_empty() && self.bytes_written == 0 {
             self.metric_buf.extend_from_slice(br#"{"series":["#);
         } else {
             self.metric_buf.push(b',');
