@@ -69,11 +69,11 @@ impl DatadogBuilder {
     ///
     /// For example, this could be something like `"hostname"`, or similar.
     pub fn global_tag(mut self, key: &str, value: &str) -> Self {
-        if !self.global_tags.is_empty() {
-            self.global_tags.push(',');
-        }
         let formatted_tag = format!("{key}:{value}");
         if let Ok(formatted_tag) = serde_json::to_string(&formatted_tag) {
+            if !self.global_tags.is_empty() {
+                self.global_tags.push(',');
+            }
             self.global_tags.push_str(&formatted_tag);
         }
         self
